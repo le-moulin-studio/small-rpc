@@ -1,0 +1,13 @@
+/small-rpc/small-jse/target/
+/small-rpc/small-annotation-processor/target/
+/small-rpc/small-model/target/
+/small-rpc/small-maven-plugin/target/
+/small-rpc/small-jse-common/target/
+/small-rpc-sample/echo-jse/client-server/target/
+/small-rpc-sample/echo-jse/common/target/
+/small-rpc-sample/echo-jse/network-model/target/
+/small-annotation-processor/target/
+/small-jse-common/target/
+/small-jse/target/
+/small-maven-plugin/target/
+/small-model/target/
