@@ -3,7 +3,7 @@ package com.lemoulinstudio.small.jse;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import com.lemoulinstudio.small.common.Remote;
+import com.lemoulinstudio.small.common.RemoteService;
 
 /**
  *
@@ -11,17 +11,17 @@ import com.lemoulinstudio.small.common.Remote;
  */
 class ProxyFactoryImpl implements ProxyFactory {
 
-  private Map<Class<? extends Remote>, Class> remoteClassToProxyClass;
+  private Map<Class<? extends RemoteService>, Class> remoteClassToProxyClass;
 
-  public ProxyFactoryImpl(Map<Class<? extends Remote>, Class> remoteClassToProxyClass) {
+  public ProxyFactoryImpl(Map<Class<? extends RemoteService>, Class> remoteClassToProxyClass) {
     this.remoteClassToProxyClass = remoteClassToProxyClass;
   }
 
   @Override
-  public <T extends Remote> T createProxy(SmallSessionImpl smallSession, Class<T> remoteClass) {
+  public <T extends RemoteService> T createProxy(SmallSessionImpl smallSession, Class<T> remoteClass) {
     try {
-      Class<? extends Remote> proxyClass = remoteClassToProxyClass.get(remoteClass);
-      Remote proxy = proxyClass.getConstructor(SmallSessionImpl.class).newInstance(smallSession);
+      Class<? extends RemoteService> proxyClass = remoteClassToProxyClass.get(remoteClass);
+      RemoteService proxy = proxyClass.getConstructor(SmallSessionImpl.class).newInstance(smallSession);
       return (T) proxy;
     } catch (Exception ex) {
       Logger.getLogger(ProxyFactoryImpl.class.getName()).log(Level.SEVERE, null, ex);

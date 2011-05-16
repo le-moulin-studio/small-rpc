@@ -67,11 +67,18 @@ public class SmallAnnotationProcessorMojo extends AbstractMojo {
 
 
   /**
-   * The base package in the model.
+   * The base package for local services in the model.
    * @parameter
    * @required
    */
-  private String inputBasePackage;
+  private String inputLocalBasePackage;
+
+  /**
+   * The base package for remote services in the model.
+   * @parameter
+   * @required
+   */
+  private String inputRemoteBasePackage;
 
   /**
    * The base package in the generated sources.
@@ -103,12 +110,6 @@ public class SmallAnnotationProcessorMojo extends AbstractMojo {
    * @parameter
    */
   private String rootDecoderClass;
-
-  /**
-   * The embedSingletonProxies flag.
-   * @parameter
-   */
-  private boolean embedSingletonProxies;
 
   /**
    * The noLog flag.
@@ -179,7 +180,8 @@ public class SmallAnnotationProcessorMojo extends AbstractMojo {
               //"-sourcepath", sourceDirectoryPaths,
               "-s", generatedSourceDir.getPath(),
               "-A" + APConfig.platformOption + "=" + platform,
-              "-A" + APConfig.inputBasePackageOption + "=" + inputBasePackage,
+              "-A" + APConfig.inputLocalBasePackageOption + "=" + inputLocalBasePackage,
+              "-A" + APConfig.inputRemoteBasePackageOption + "=" + inputRemoteBasePackage,
               "-A" + APConfig.outputBasePackageOption + "=" + outputBasePackage));
 
       if (configurationClass != null)
@@ -193,9 +195,6 @@ public class SmallAnnotationProcessorMojo extends AbstractMojo {
       
       if (rootDecoderClass != null)
         options.add("-A" + APConfig.rootDecoderClassOption + "=" + rootDecoderClass);
-
-      if (embedSingletonProxies)
-        options.add("-A" + APConfig.embedSingletonProxiesOption);
 
       if (noLog)
         options.add("-A" + APConfig.noLogOption);

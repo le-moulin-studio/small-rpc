@@ -14,5 +14,5 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.SOURCE)
 @Target({ElementType.METHOD})
 public @interface NoLog {
-  Side value() default Side.Both;
+  TransmissionStep value() default TransmissionStep.Both;
 }

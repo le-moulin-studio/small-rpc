@@ -10,5 +10,5 @@ package com.lemoulinstudio.small.common;
  *
  * @author Vincent Cantin
  */
-public interface Remote {
+public interface RemoteService {
 }

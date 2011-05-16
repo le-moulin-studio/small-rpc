@@ -22,5 +22,5 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.SOURCE)
 @Target({ElementType.TYPE, ElementType.METHOD})
 public @interface Log {
-  Side value() default Side.Both;
+  TransmissionStep value() default TransmissionStep.Both;
 }

@@ -1,13 +1,9 @@
 package com.lemoulinstudio.small.apt;
 
-import com.lemoulinstudio.small.apt.model.CallerObject;
-import com.lemoulinstudio.small.apt.model.ImplementedBy;
-import com.lemoulinstudio.small.apt.model.NetworkInterface;
-import com.lemoulinstudio.small.apt.model.NoLog;
-import com.lemoulinstudio.small.apt.model.Singleton;
 import com.lemoulinstudio.small.apt.generator.CodeGenerator;
-import com.lemoulinstudio.small.apt.model.BindToLocalId;
-import com.lemoulinstudio.small.apt.model.BindToSharedId;
+import com.lemoulinstudio.small.apt.model.CallerObject;
+import com.lemoulinstudio.small.apt.model.Service;
+import com.lemoulinstudio.small.apt.model.NoLog;
 import com.lemoulinstudio.small.apt.model.Log;
 import com.lemoulinstudio.small.apt.oom.ModelData;
 import com.lemoulinstudio.small.apt.oom.ModelFactory;
@@ -35,13 +31,13 @@ import javax.tools.Diagnostic;
  *     -sourcepath sourceDir
  *     -s generatedSourceDir
  *     -Aplatform=platform
- *     -AinputBasePackage=inputBasePackage
+ *     -AinputLocalBasePackage=inputLocalBasePackage
+ *     -AinputRemoteBasePackage=inputRemoteBasePackage
  *     -AoutputBasePackage=outputBasePackage
  *     [-AconfigurationClass=configurationClass]
  *     [-ArootRemoteClass=rootRemoteClass]
  *     [-ArootProxyClass=rootProxyClass]
  *     [-ArootDecoderClass=rootDecoderClass]
- *     [-AembedSingletonProxies]
  *     [-AnoLog]
  *     [-Averbose]
  * </pre>
@@ -55,12 +51,13 @@ import javax.tools.Diagnostic;
  * <p><code>platform</code> is the platform where your program is running. For now, you can
  * use one of the following values:
  * <ul>
- * <li>"<code>jse-client</code>" for the Jse client of your Red Dwarf application.</li>
- * <li>"<code>rds</code>" for the server of your Red Dwarf application.</li>
+ * <li>"<code>jse</code>" for the JavaSE applications.</li>
+ * <li>"<code>cpp</code>" for the C++ applications.</li>
  * </ul>
  * </p>
  *
- * <p><code>inputBasePackage</code> is the root package where the network models are located.</p>
+ * <p><code>inputLocalBasePackage</code> is the root package where the network models describing your local services are located.</p>
+ * <p><code>inputRemoteBasePackage</code> is the root package where the network models describing the remote services are located.</p>
  *
  * <p><code>outputBasePackage</code> is the root package where the generated files will be located.</p>
  *
@@ -70,9 +67,10 @@ import javax.tools.Diagnostic;
  *     -proc:only
  *     -processor com.lemoulinstudio.small.apt.SmallAnnotationProcessor
  *     -sourcepath src/main/java/
- *     -s target/generated-sources/small-generated-stuffs/
+ *     -s target/generated-sources/rpc-stuffs/
  *     -Aplatform=jse
- *     -AinputBasePackage=game.networkmodel
+ *     -AinputLocalBasePackage=game.networkmodel.client
+ *     -AinputRemoteBasePackage=game.networkmodel.server
  *     -AoutputBasePackage=game.client.network
  *     -Averbose
  * </pre>
@@ -97,14 +95,10 @@ public class SmallAnnotationProcessor extends AbstractProcessor {
   @Override
   public Set<String> getSupportedAnnotationTypes() {
     List<Class> supportedAnnotationTypeList = Arrays.<Class>asList(
-            BindToLocalId.class,
-            BindToSharedId.class,
             CallerObject.class,
-            ImplementedBy.class,
             Log.class,
-            NetworkInterface.class,
-            NoLog.class,
-            Singleton.class);
+            Service.class,
+            NoLog.class);
 
     Set<String> result = new HashSet<String>();
     for (Class clazz : supportedAnnotationTypeList)
@@ -131,7 +125,7 @@ public class SmallAnnotationProcessor extends AbstractProcessor {
     if (!config.isValid())
       return true;
 
-    // Build object representation of the models.
+    // Build an object representation of the models.
     ModelFactory modelFactory = new ModelFactory(config);
     ModelData modelData = modelFactory.getModelData();
 

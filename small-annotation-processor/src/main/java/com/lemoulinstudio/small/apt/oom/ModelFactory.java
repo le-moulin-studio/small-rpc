@@ -1,16 +1,11 @@
 package com.lemoulinstudio.small.apt.oom;
 
 import com.lemoulinstudio.small.apt.APConfig;
-import com.lemoulinstudio.small.apt.model.BindToLocalId;
-import com.lemoulinstudio.small.apt.model.BindToSharedId;
 import com.lemoulinstudio.small.apt.model.CallerObject;
-import com.lemoulinstudio.small.apt.model.ImplementedBy;
 import com.lemoulinstudio.small.apt.model.Log;
-import com.lemoulinstudio.small.apt.model.NetworkInterface;
+import com.lemoulinstudio.small.apt.model.Service;
 import com.lemoulinstudio.small.apt.model.NoLog;
-import com.lemoulinstudio.small.apt.model.Singleton;
-import com.lemoulinstudio.small.apt.model.View;
-import com.lemoulinstudio.small.apt.model.Side;
+import com.lemoulinstudio.small.apt.model.TransmissionStep;
 import com.lemoulinstudio.small.apt.type.ArrayType;
 import com.lemoulinstudio.small.apt.type.DeclaredType;
 import com.lemoulinstudio.small.apt.type.EnumType;
@@ -72,8 +67,13 @@ public class ModelFactory {
 
   private void setupModelData() {
     // 1st pass: create the instances of ModelClass.
-    for (Element classElement : config.getRoundEnv().getElementsAnnotatedWith(NetworkInterface.class))
-      modelClassElementToModelClass.put((TypeElement) classElement, new ModelClass());
+    for (Element element : config.getRoundEnv().getElementsAnnotatedWith(Service.class)) {
+      TypeElement classElement = (TypeElement) element;
+      String qualifiedName = classElement.getQualifiedName().toString();
+      if (qualifiedName.startsWith(config.getInputLocalBasePackage()) ||
+          qualifiedName.startsWith(config.getInputRemoteBasePackage()))
+        modelClassElementToModelClass.put(classElement, new ModelClass());
+    }
 
     // 2nd pass: setup their content and their relationships.
     for (Map.Entry<TypeElement, ModelClass> entry : modelClassElementToModelClass.entrySet())
@@ -88,7 +88,7 @@ public class ModelFactory {
     // Store the modelClass instances in the modelData.
     modelData.modelClassSet.addAll(modelClassList);
     for (ModelClass modelClass : modelClassList) {
-      if (config.getPlatform().getHostKind() == modelClass.getHostKind())
+      if (modelClass.isLocalSide())
         modelData.sameSideModelClassOrderedList.add(modelClass);
       else
         modelData.otherSideModelClassOrderedList.add(modelClass);
@@ -96,31 +96,8 @@ public class ModelFactory {
   }
 
   private void setupModelClass(ModelClass modelClass, TypeElement classElement) {
-    modelClass.hostKind = classElement.getAnnotation(NetworkInterface.class).value();
-    modelClass.isLocalSide = (modelClass.hostKind == config.getPlatform().getHostKind());
-    modelClass.idBindingPolicy = IdBindingPolicy.LocalId;
-    modelClass.implementedBy = classElement.getAnnotation(ImplementedBy.class);
     modelClass.qualifiedName = classElement.getQualifiedName().toString();
-
-    // @Singleton / @BindToLocalId / @BindToSharedId.
-    if (classElement.getAnnotation(Singleton.class) != null)
-      modelClass.idBindingPolicy = IdBindingPolicy.Singleton;
-    else if (classElement.getAnnotation(BindToSharedId.class) != null)
-      modelClass.idBindingPolicy = IdBindingPolicy.SharedId;
-    else if (classElement.getAnnotation(BindToLocalId.class) != null)
-      modelClass.idBindingPolicy = IdBindingPolicy.LocalId;
-    
-    // ViewedModel / ViewedBy.
-    TypeElement viewedElement = getClassElementRelationTag(classElement, View.class, 0);
-    ModelClass viewedModelClass = modelClassElementToModelClass.get(viewedElement);
-    if (viewedModelClass != null) {
-      modelClass.viewedModel = viewedModelClass;
-      viewedModelClass.viewedByModel = modelClass;
-
-      // A view of a singleton a is singleton too.
-      if (viewedElement.getAnnotation(Singleton.class) != null)
-        modelClass.idBindingPolicy = IdBindingPolicy.Singleton;
-    }
+    modelClass.isLocalSide = modelClass.qualifiedName.startsWith(config.getInputLocalBasePackage());
 
     // Methods.
     for (Element enclosedElement : classElement.getEnclosedElements()) {
@@ -133,7 +110,7 @@ public class ModelFactory {
   }
 
   private void assignMethodIDs(ModelClass modelClass) {
-    if (config.getPlatform().getHostKind() == modelClass.getHostKind())
+    if (modelClass.isLocalSide())
       for (ModelMethod modelMethod : modelClass.getMethodList())
         modelMethod.methodId = modelData.sameSideMethodId++;
     else
@@ -153,25 +130,25 @@ public class ModelFactory {
     // @Log policies at class level.
     Log classElementLogAnnotation = methodElement.getEnclosingElement().getAnnotation(Log.class);
     if (classElementLogAnnotation != null) {
-      Side side = classElementLogAnnotation.value();
-      if (side.isInvocationSide()) modelMethod.logMethodInvocation = true;
-      if (side.isReceptionSide())  modelMethod.logMessageReception = true;
+      TransmissionStep transmissionStep = classElementLogAnnotation.value();
+      if (transmissionStep.hasInvocation()) modelMethod.logMethodInvocation = true;
+      if (transmissionStep.hasReception())  modelMethod.logMessageReception = true;
     }
 
     // @NoLog policies at method level.
     NoLog methodElementNoLogAnnotation = methodElement.getAnnotation(NoLog.class);
     if (methodElementNoLogAnnotation != null) {
-      Side side = methodElementNoLogAnnotation.value();
-      if (side.isInvocationSide()) modelMethod.logMethodInvocation = false;
-      if (side.isReceptionSide())  modelMethod.logMessageReception = false;
+      TransmissionStep transmissionStep = methodElementNoLogAnnotation.value();
+      if (transmissionStep.hasInvocation()) modelMethod.logMethodInvocation = false;
+      if (transmissionStep.hasReception())  modelMethod.logMessageReception = false;
     }
     else {
       // @Log policies at method level.
       Log methodElementLogAnnotation = methodElement.getAnnotation(Log.class);
       if (methodElementLogAnnotation != null) {
-        Side side = methodElementLogAnnotation.value();
-        if (side.isInvocationSide()) modelMethod.logMethodInvocation = true;
-        if (side.isReceptionSide())  modelMethod.logMessageReception = true;
+        TransmissionStep transmissionStep = methodElementLogAnnotation.value();
+        if (transmissionStep.hasInvocation()) modelMethod.logMethodInvocation = true;
+        if (transmissionStep.hasReception())  modelMethod.logMessageReception = true;
       }
     }
 
@@ -184,7 +161,7 @@ public class ModelFactory {
     // Parameters.
     for (VariableElement variableElement : methodElement.getParameters()) {
       ModelParameter modelParameter = createModelParameter(modelMethod, variableElement);
-      if (!modelParameter.isCallerObject || config.getPlatform().getHostKind() == parentModelClass.hostKind)
+      if (!modelParameter.isCallerObject || parentModelClass.isLocalSide())
         modelMethod.parameterList.add(modelParameter);
     }
 
@@ -258,19 +235,6 @@ public class ModelFactory {
     }
   }
   
-  private TypeElement getClassElementRelationTag(TypeElement classElement, Class interfaceClass, int genericArgumentIndex) {
-    for (TypeMirror interfaceType : classElement.getInterfaces()) {
-      javax.lang.model.type.DeclaredType declaredInterfaceType = (javax.lang.model.type.DeclaredType) interfaceType;
-      TypeElement typeElement = (TypeElement) declaredInterfaceType.asElement();
-      if (typeElement.getQualifiedName().toString().equals(interfaceClass.getName())) {
-        String typeElementName = declaredInterfaceType.getTypeArguments().get(genericArgumentIndex).toString();
-        return config.getProcessingEnv().getElementUtils().getTypeElement(typeElementName);
-      }
-    }
-
-    return null;
-  }
-
   private static class ModelClassComparator implements Comparator<ModelClass> {
     @Override
     public int compare(ModelClass o1, ModelClass o2) {

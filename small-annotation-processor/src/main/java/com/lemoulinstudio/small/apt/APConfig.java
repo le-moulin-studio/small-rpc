@@ -1,6 +1,5 @@
 package com.lemoulinstudio.small.apt;
 
-import com.lemoulinstudio.small.apt.model.HostKind;
 import com.lemoulinstudio.small.apt.oom.ClassName;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -16,7 +15,8 @@ import javax.tools.Diagnostic;
 public class APConfig {
 
   public static final String platformOption = "platform";
-  public static final String inputBasePackageOption = "inputBasePackage";
+  public static final String inputLocalBasePackageOption = "inputLocalBasePackage";
+  public static final String inputRemoteBasePackageOption = "inputRemoteBasePackage";
   public static final String outputBasePackageOption = "outputBasePackage";
   public static final String configurationClassOption = "configurationClass";
   public static final String rootRemoteClassOption = "rootRemoteClass";
@@ -33,26 +33,26 @@ public class APConfig {
   public static Set<String> getSupportedOptions() {
     return new HashSet<String>(Arrays.asList(
             platformOption,
-            inputBasePackageOption,
+            inputLocalBasePackageOption,
+            inputRemoteBasePackageOption,
             outputBasePackageOption,
             configurationClassOption,
             rootRemoteClassOption,
             rootProxyClassOption,
             rootDecoderClassOption,
-            embedSingletonProxiesOption,
             noLogOption,
             verboseOption
             ));
   }
 
   private Platform platform;
-  private String inputBasePackage;
+  private String inputLocalBasePackage;
+  private String inputRemoteBasePackage;
   private String outputBasePackage;
   private ClassName configurationClassName;
   private ClassName rootRemoteClassName;
   private ClassName rootProxyClassName;
   private ClassName rootDecoderClassName;
-  private boolean embedSingletonProxies;
   private boolean noLog;
   private boolean verbose;
 
@@ -65,7 +65,8 @@ public class APConfig {
     this.roundEnv = roundEnv;
     
     platform = readPlatformValue();
-    inputBasePackage = readOptionValue(inputBasePackageOption, "");
+    inputLocalBasePackage = readOptionValue(inputLocalBasePackageOption, "");
+    inputRemoteBasePackage = readOptionValue(inputRemoteBasePackageOption, "");
     outputBasePackage = readOptionValue(outputBasePackageOption, "small.generated");
 
     configurationClassName = new ClassName(readOptionValue(configurationClassOption, outputBasePackage + ".Configuration"));
@@ -73,7 +74,6 @@ public class APConfig {
     rootProxyClassName = new ClassName(readOptionValue(rootProxyClassOption, outputBasePackage + ".RootProxy"));
     rootDecoderClassName = new ClassName(readOptionValue(rootDecoderClassOption, outputBasePackage + ".RootDecoder"));
 
-    embedSingletonProxies = readBooleanOptionValue(embedSingletonProxiesOption, platform.getHostKind() == HostKind.Server);
     noLog = readBooleanOptionValue(noLogOption, false);
     verbose = readBooleanOptionValue(verboseOption, false);
   }
@@ -82,8 +82,12 @@ public class APConfig {
     return platform;
   }
 
-  public String getInputBasePackage() {
-    return inputBasePackage;
+  public String getInputLocalBasePackage() {
+    return inputLocalBasePackage;
+  }
+
+  public String getInputRemoteBasePackage() {
+    return inputRemoteBasePackage;
   }
 
   public String getOutputBasePackage() {
@@ -104,10 +108,6 @@ public class APConfig {
 
   public ClassName getRootDecoderClassName() {
     return rootDecoderClassName;
-  }
-
-  public boolean shouldEmbedSingletonProxies() {
-    return embedSingletonProxies;
   }
 
   public boolean isNoLog() {
@@ -184,7 +184,10 @@ public class APConfig {
   }
 
   public boolean isValid() {
-    return (platform != null) && (inputBasePackage != null) && (outputBasePackage != null);
+    return (platform != null) &&
+           (inputLocalBasePackage != null) &&
+           (inputRemoteBasePackage != null) &&
+           (outputBasePackage != null);
   }
 
 }

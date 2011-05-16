@@ -1,6 +1,5 @@
 package com.lemoulinstudio.small.apt.generator;
 
-import com.lemoulinstudio.small.apt.oom.IdBindingPolicy;
 import com.lemoulinstudio.small.apt.oom.ModelClass;
 import com.lemoulinstudio.small.apt.oom.ModelMethod;
 import com.lemoulinstudio.small.apt.oom.ModelParameter;
@@ -12,12 +11,8 @@ import com.lemoulinstudio.small.apt.type.PrimitiveType;
 import com.lemoulinstudio.small.apt.type.PrimitiveWrapperType;
 import com.lemoulinstudio.small.apt.type.Type;
 import com.lemoulinstudio.small.apt.type.TypeKind;
-import com.lemoulinstudio.small.common.BindToLocalId;
-import com.lemoulinstudio.small.common.BindToSharedId;
-import com.lemoulinstudio.small.common.Local;
-import com.lemoulinstudio.small.common.Remote;
-import com.lemoulinstudio.small.common.Singleton;
-import com.lemoulinstudio.small.jse.View;
+import com.lemoulinstudio.small.common.LocalService;
+import com.lemoulinstudio.small.common.RemoteService;
 import com.lemoulinstudio.small.utils.Utils;
 import java.io.File;
 import java.io.IOException;
@@ -42,16 +37,20 @@ public class JavaCodeGenerator extends CodeGenerator {
   private Class generatedConfigClass;
   private Class proxyClass;
   private Class rootDecoderClass;
-  private Class decoderClass;
   private String implementSerializable;
   private String serialVersionUIDField;
 
-  public JavaCodeGenerator(Class smallSessionClass, Class generatedConfigClass, Class proxyClass, Class rootDecoderClass, Class decoderClass, String implementSerializable, String serialVersionUIDField) {
+  public JavaCodeGenerator(
+          Class smallSessionClass,
+          Class generatedConfigClass,
+          Class proxyClass,
+          Class rootDecoderClass,
+          String implementSerializable,
+          String serialVersionUIDField) {
     this.smallSessionClass = smallSessionClass;
     this.generatedConfigClass = generatedConfigClass;
     this.proxyClass = proxyClass;
     this.rootDecoderClass = rootDecoderClass;
-    this.decoderClass = decoderClass;
     this.implementSerializable = implementSerializable;
     this.serialVersionUIDField = serialVersionUIDField;
   }
@@ -59,41 +58,30 @@ public class JavaCodeGenerator extends CodeGenerator {
   @Override
   public void generateAll() {
 
-    List<ModelClass> otherSideEmbeddedClassList = new ArrayList<ModelClass>();
-    List<ModelClass> otherSideNonEmbeddedClassList = new ArrayList<ModelClass>();
-
-    for (ModelClass modelClass : modelData.getOtherSideModelClassOrderedList()) {
-      if (modelClass.isView() || (modelClass.isSingleton() && config.shouldEmbedSingletonProxies())) otherSideEmbeddedClassList.add(modelClass);
-      else otherSideNonEmbeddedClassList.add(modelClass);
-    }
+    List<ModelClass> localSideClassList =  modelData.getSameSideModelClassOrderedList();
+    List<ModelClass> remoteSideClassList =  modelData.getOtherSideModelClassOrderedList();
 
     // Generate the configuration file.
-    generateConfigFile(!otherSideEmbeddedClassList.isEmpty(), otherSideNonEmbeddedClassList);
+    generateConfigFile(remoteSideClassList);
 
-    // Generate the decoders.
-    generateRootDecoder(modelData.getSameSideModelClassOrderedList());
-
-    // Generate the root proxy if it is needed.
-    if (!otherSideEmbeddedClassList.isEmpty()) {
-      generateRootRemoteInterface(otherSideEmbeddedClassList);
-      generateRootProxy(otherSideEmbeddedClassList);
-    }
+    // Generate the decoder.
+    generateRootDecoder(localSideClassList);
 
     // Generate the interfaces for local objects to implement.
-    for (ModelClass modelClass : modelData.getSameSideModelClassOrderedList())
+    for (ModelClass modelClass : localSideClassList)
       generateInterface(modelClass);
 
     // Generate the interface for remote objects which will have a proxy.
-    for (ModelClass modelClass : otherSideNonEmbeddedClassList)
+    for (ModelClass modelClass : remoteSideClassList)
       generateInterface(modelClass);
     
     // Generate the proxies for remote objects which are not embedded inside the root proxy.
-    for (ModelClass modelClass : otherSideNonEmbeddedClassList)
+    for (ModelClass modelClass : remoteSideClassList)
       generateClassProxy(modelClass);
 
   }
 
-  protected void generateConfigFile(boolean hasRootProxy, List<ModelClass> modelClasseList) {
+  protected void generateConfigFile(List<ModelClass> modelClasseList) {
     StringBuffer buffer = new StringBuffer();
     
     buffer.append("package " + config.getConfigurationClassName().getPackageName() + ";\n");
@@ -105,10 +93,8 @@ public class JavaCodeGenerator extends CodeGenerator {
     buffer.append(serialVersionUIDField);
     buffer.append("\n");
     buffer.append("  @Override\n");
-    buffer.append("  public java.util.Map<Class<? extends " + Remote.class.getName() + ">, Class> getRemoteClassToProxyClass() {\n");
-    buffer.append("    java.util.Map<Class<? extends " + Remote.class.getName() + ">, Class> result = new java.util.HashMap<Class<? extends " + Remote.class.getName() + ">, Class>();\n");
-    if (hasRootProxy)
-      buffer.append("    result.put(" + config.getRootRemoteClassName().getQualifiedName() + ".class, " + config.getRootProxyClassName().getQualifiedName() + ".class);\n");
+    buffer.append("  public java.util.Map<Class<? extends " + RemoteService.class.getName() + ">, Class> getRemoteClassToProxyClass() {\n");
+    buffer.append("    java.util.Map<Class<? extends " + RemoteService.class.getName() + ">, Class> result = new java.util.HashMap<Class<? extends " + RemoteService.class.getName() + ">, Class>();\n");
     for (ModelClass modelClass : modelClasseList)
       buffer.append("    result.put(" + getInterfaceName(modelClass).getQualifiedName() + ".class, " + getProxyName(modelClass).getQualifiedName() + ".class);\n");
     buffer.append("    return result;\n");
@@ -132,13 +118,11 @@ public class JavaCodeGenerator extends CodeGenerator {
     buffer.append("\n");
     buffer.append(getGeneratedTag() + "\n");
     buffer.append("public interface " + config.getRootRemoteClassName().getSimpleName() +
-            " extends " + Singleton.class.getName() + ", " + Remote.class.getName() + " {\n");
+            " extends " + RemoteService.class.getName() + " {\n");
 
     for (ModelClass modelClass : modelClassList) {
       for (ModelMethod modelMethod : modelClass.getMethodList()) {
         List<String> parameterTextList = new ArrayList<String>();
-        if (!modelClass.isSingleton())
-          parameterTextList.add(toString(new ModelType(modelClass.getViewedModel()), false, false) + " messageTarget");
         for (ModelParameter modelParameter : modelMethod.getParameterList())
           parameterTextList.add(toString(modelParameter.getType(), modelClass.isLocalSide(), false) +
                   " " + modelParameter.getName());
@@ -184,8 +168,6 @@ public class JavaCodeGenerator extends CodeGenerator {
     for (ModelClass modelClass : modelClassList) {
       for (ModelMethod modelMethod : modelClass.getMethodList()) {
         List<String> parameterTextList = new ArrayList<String>();
-        if (!modelClass.isSingleton())
-          parameterTextList.add(toString(new ModelType(modelClass.getViewedModel()), false, false) + " messageTarget");
         for (ModelParameter modelParameter : modelMethod.getParameterList())
           parameterTextList.add(toString(modelParameter.getType(), modelClass.isLocalSide(), false) +
                   " param_" + modelParameter.getName());
@@ -214,7 +196,7 @@ public class JavaCodeGenerator extends CodeGenerator {
                 "messageTarget",
                 "outputStream",
                 new ModelType(modelClass),
-                0, true));
+                0));
 
         // Encode the parameter's values.
         for (ModelParameter modelParameter : modelMethod.getParameterList()) {
@@ -224,7 +206,7 @@ public class JavaCodeGenerator extends CodeGenerator {
                   "param_" + modelParameter.getName(),
                   "outputStream",
                   modelParameter.getType(),
-                  0, true));
+                  0));
         }
 
         // Close the "try" with a "catch" which does nothing.
@@ -277,15 +259,12 @@ public class JavaCodeGenerator extends CodeGenerator {
         buffer.append("      // " + getInterfaceName(modelClass).getQualifiedName() + "." + modelMethod.getName() + "()\n");
         buffer.append("      case " + modelMethod.getMethodId() + ": {\n");
 
-        // Decode the message's target.
-        buffer.append("        // Decode the target of the message.\n");
-        buffer.append(getDecodingSourceCode(
-                "%s = %s",
-                "        ",
-                getInterfaceName(modelClass).getQualifiedName() + " target",
-                "inputStream",
-                new ModelType(modelClass),
-                0));
+        // Find the message's target.
+        buffer.append("        // Find the target of the message.\n");
+        buffer.append("        " + getInterfaceName(modelClass).getQualifiedName() +
+                " service = smallSession.getLocalService(" +
+                getInterfaceName(modelClass).getQualifiedName() +
+                ".class);\n");
         
         // Declare the parameters.
         if (!modelMethod.getParameterList().isEmpty()) {
@@ -318,16 +297,16 @@ public class JavaCodeGenerator extends CodeGenerator {
         if (modelMethod.shouldLogMessageReception()) {
           buffer.append("\n");
           buffer.append("        // Log the message reception.\n");
-          buffer.append("        smallSession.logText(\"<- \"" + getArgumentLogText("target", modelMethod) + ");\n");
+          buffer.append("        smallSession.logText(\"<- \"" + getArgumentLogText("service", modelMethod) + ");\n");
         }
 
         // Call the method.
         buffer.append("\n");
-        buffer.append("        // Call the method on the target.\n");
+        buffer.append("        // Call the method of the service.\n");
         List<String> parameterNameList = new ArrayList<String>();
         for (ModelParameter modelParameter : modelMethod.getParameterList())
           parameterNameList.add("param_" + modelParameter.getName());
-        buffer.append("        target." + modelMethod.getName() + "(" + getCommaSeparatedSequence(parameterNameList) + ");\n");
+        buffer.append("        service." + modelMethod.getName() + "(" + getCommaSeparatedSequence(parameterNameList) + ");\n");
 
         buffer.append("\n");
         buffer.append("        break;\n");
@@ -354,29 +333,10 @@ public class JavaCodeGenerator extends CodeGenerator {
 
     List<String> superInterfaceList = new ArrayList<String>();
 
-    if (modelClass.isLocalSide()) {
-      if (modelClass.isView())
-        superInterfaceList.add(View.class.getName() + "<" + getInterfaceName(modelClass.getViewedModel()).getQualifiedName() + ">");
-      else switch (modelClass.getIdBindingPolicy()) {
-        case Singleton: superInterfaceList.add(Singleton.class.getName()); break;
-        case SharedId: superInterfaceList.add(BindToSharedId.class.getName()); break;
-        case LocalId: superInterfaceList.add(BindToLocalId.class.getName()); break;
-      }
-      
-      superInterfaceList.add(Local.class.getName());
-    }
-    else {
-      switch (modelClass.getIdBindingPolicy()) {
-        case Singleton: superInterfaceList.add(Singleton.class.getName()); break;
-        case SharedId: superInterfaceList.add(BindToSharedId.class.getName()); break;
-        case LocalId: superInterfaceList.add(BindToLocalId.class.getName()); break;
-      }
-
-      superInterfaceList.add(Remote.class.getName());
-    }
+    superInterfaceList.add((modelClass.isLocalSide() ?
+            LocalService.class : RemoteService.class).getName());
     
-    if (!superInterfaceList.isEmpty())
-      buffer.append(" extends " + getCommaSeparatedSequence(superInterfaceList));
+    buffer.append(" extends " + getCommaSeparatedSequence(superInterfaceList));
     
     buffer.append(" {\n");
 
@@ -397,7 +357,7 @@ public class JavaCodeGenerator extends CodeGenerator {
   protected void generateClassProxy(ModelClass modelClass) {
     // Choose the right way to encode the methodIDs with respect to their cardinal.
     String writeMethodIdFormat;
-    if (modelData.getNumberOfMethodsOnSameSide() <= 1) writeMethodIdFormat = "// No need to write the methodId.";
+    if (modelData.getNumberOfMethodsOnSameSide() <= 1) writeMethodIdFormat = "// No need.";
     else if (modelData.getNumberOfMethodsOnSameSide() <= 256) writeMethodIdFormat = "outputStream.writeByte(%s);";
     else if (modelData.getNumberOfMethodsOnSameSide() <= 65536) writeMethodIdFormat = "outputStream.writeShort(%s);";
     else writeMethodIdFormat = "outputStream.writeInt(%s);";
@@ -446,14 +406,6 @@ public class JavaCodeGenerator extends CodeGenerator {
       buffer.append("      " + String.format(writeMethodIdFormat, modelMethod.getMethodId()) + "\n");
       buffer.append("\n");
 
-      // Encode the targeted object's Id.
-      buffer.append("      // Encode the targeted object's reference.\n");
-      buffer.append(getEncodingSourceCode("      ",
-              "this",
-              "outputStream",
-              new ModelType(modelClass),
-              0, false));
-      
       // Encode the parameter's values.
       for (ModelParameter modelParameter : modelMethod.getParameterList()) {
         buffer.append("\n");
@@ -462,7 +414,7 @@ public class JavaCodeGenerator extends CodeGenerator {
                 "param_" + modelParameter.getName(),
                 "outputStream",
                 modelParameter.getType(),
-                0, true));
+                0));
       }
 
       // Close the "try" with a "catch" which does nothing.
@@ -533,18 +485,7 @@ public class JavaCodeGenerator extends CodeGenerator {
       case Model: {
         ModelClass modelClass = ((ModelType) type).getModelClass();
 
-        // ViewOf<...>
-        if (!modelClass.isLocalSide()) {
-          if (modelClass.isView()) modelClass = modelClass.getViewedModel();
-          else if (modelClass.isViewed()) modelClass = modelClass.getViewedByModel();
-        }
-
-        // @ImplementedBy
-        String result = "";
-        if (modelClass.isImplementationSpecified() && modelClass.isLocalSide())
-          result += modelClass.getImplementationQualifiedName();
-        else
-          result += getInterfaceName(modelClass).getQualifiedName();
+        String result = getInterfaceName(modelClass).getQualifiedName();
 
         // Add "? extends " if enclosed within a generic type.
         if (isGenericArgument && !isReceiverSide)
@@ -578,8 +519,7 @@ public class JavaCodeGenerator extends CodeGenerator {
           String valueName,
           String outputStreamVarName,
           Type parameterType,
-          int recursionDepth,
-          boolean replaceViewViewed) {
+          int recursionDepth) {
     StringBuffer buffer = new StringBuffer();
 
     if (parameterType.getTypeKind() == TypeKind.Primitive) {
@@ -608,8 +548,7 @@ public class JavaCodeGenerator extends CodeGenerator {
               "val" + recursionDepth,
               outputStreamVarName,
               arrayType.getComponentType(),
-              recursionDepth + 1,
-              replaceViewViewed);
+              recursionDepth + 1);
 
       buffer.append(String.format(
               "%1$s%2$s.writeInt(%3$s.length);\n" +
@@ -637,39 +576,6 @@ public class JavaCodeGenerator extends CodeGenerator {
       buffer.append(indentation + outputStreamVarName + enumWriteCommand + ";\n");
     }
 
-    else if (parameterType.getTypeKind() == TypeKind.Model) {
-      ModelType modelType = (ModelType) parameterType;
-      ModelClass modelClass = modelType.getModelClass();
-
-      // Replace the type of the object that we are going to encode.
-      if (replaceViewViewed && !modelClass.isLocalSide()) {
-        if (modelClass.isView()) modelClass = modelClass.getViewedModel();
-        else if (modelClass.isViewed()) modelClass = modelClass.getViewedByModel();
-      }
-
-      if (modelClass.getIdBindingPolicy() == IdBindingPolicy.Singleton) {
-        buffer.append(indentation + "// Singletons are not encoded.\n");
-      }
-      else if (modelClass.isLocalSide()) {
-        if (modelClass.isView()) {
-          buffer.append(indentation + "smallSession.encodeViewRef(" + valueName +
-                  ", " + outputStreamVarName + ");\n");
-        }
-        else if (modelClass.getIdBindingPolicy() == IdBindingPolicy.SharedId) {
-          buffer.append(indentation + "smallSession.encodeObjectSharedId(" + valueName +
-                  ", " + outputStreamVarName + ");\n");
-        }
-        else if (modelClass.getIdBindingPolicy() == IdBindingPolicy.LocalId) {
-          buffer.append(indentation + "smallSession.encodeObjectLocalId(" + valueName +
-                  ", " + outputStreamVarName + ");\n");
-        }
-      }
-      else {
-        buffer.append(indentation + "smallSession.encodeRemoteObjectRef(" + valueName +
-                ", " + outputStreamVarName + ");\n");
-      }
-    }
-
     else if (parameterType.getTypeKind() == TypeKind.Declared) {
       DeclaredType declaredType = (DeclaredType) parameterType;
 
@@ -683,8 +589,7 @@ public class JavaCodeGenerator extends CodeGenerator {
                 "val" + recursionDepth,
                 outputStreamVarName,
                 declaredType.getGenericArgumentTypeList().get(0),
-                recursionDepth + 1,
-                replaceViewViewed);
+                recursionDepth + 1);
 
         buffer.append(String.format(
                 "%1$s%2$s.writeInt(%3$s.size());\n" +
@@ -705,15 +610,13 @@ public class JavaCodeGenerator extends CodeGenerator {
                 "entry" + recursionDepth + ".getKey()",
                 outputStreamVarName,
                 declaredType.getGenericArgumentTypeList().get(0),
-                recursionDepth + 1,
-                replaceViewViewed);
+                recursionDepth + 1);
         CharSequence writeValueBlock = getEncodingSourceCode(
                 indentation + "  ",
                 "entry" + recursionDepth + ".getValue()",
                 outputStreamVarName,
                 declaredType.getGenericArgumentTypeList().get(1),
-                recursionDepth + 1,
-                replaceViewViewed);
+                recursionDepth + 1);
 
         buffer.append(String.format(
                 "%1$s%2$s.writeInt(%3$s.size());\n" +
@@ -810,44 +713,15 @@ public class JavaCodeGenerator extends CodeGenerator {
                 enumType.getQualifiedClassName() + ".values()[" + enumOrdinalAsInt + "]") + ";\n");
     }
 
-    else if (parameterType.getTypeKind() == TypeKind.Model) {
-      ModelType modelType = (ModelType) parameterType;
-      ModelClass modelClass = modelType.getModelClass();
-
-      if (modelClass.isLocalSide()) {
-        if (modelClass.isView()) {
-          buffer.append(indentation + String.format(affectationFormat, targetVariableName,
-                    "(" + toString(modelType, true, false) + ") smallSession." +
-                    (modelClass.isSingleton() ? "decodeSingletonViewRef" : "decodeViewRef") +
-                    "(" + inputStreamVarName + ", " + getInterfaceName(modelClass.getViewedModel()).getQualifiedName() + ".class)") + ";\n");
-        }
-        else if (modelClass.getIdBindingPolicy() == IdBindingPolicy.Singleton) {
-            buffer.append(indentation + String.format(affectationFormat, targetVariableName,
-                    "smallSession.getLocalSingletonRef(" + toString(modelType, true, false, true) + ".class)") + ";\n");
-        }
-        else if (modelClass.getIdBindingPolicy() == IdBindingPolicy.SharedId) {
-            buffer.append(indentation + String.format(affectationFormat, targetVariableName,
-                    "smallSession.decodeObjectSharedId(" +
-                    inputStreamVarName + ", " + toString(modelType, true, false, true) + ".class)") + ";\n");
-        }
-        else if (modelClass.getIdBindingPolicy() == IdBindingPolicy.LocalId) {
-            buffer.append(indentation + String.format(affectationFormat, targetVariableName,
-                    "smallSession.decodeObjectLocalId(" +
-                    inputStreamVarName + ", " + toString(modelType, true, false, true) + ".class)") + ";\n");
-        }
-      }
-      else {
-        if (modelClass.getIdBindingPolicy() == IdBindingPolicy.Singleton) {
-            buffer.append(indentation + String.format(affectationFormat, targetVariableName,
-                    "smallSession.getRemoteSingletonRef(" + toString(modelType, true, false, true) + ".class)") + ";\n");
-        }
-        else {
-            buffer.append(indentation + String.format(affectationFormat, targetVariableName,
-                    "smallSession.decodeRemoteObjectRef(" +
-                    inputStreamVarName + ", " + toString(modelType, true, false, true) + ".class)") + ";\n");
-        }
-      }
-    }
+//    else if (parameterType.getTypeKind() == TypeKind.Model) {
+//      ModelType modelType = (ModelType) parameterType;
+//      ModelClass modelClass = modelType.getModelClass();
+//
+//      if (modelClass.isLocalSide())
+//        if (modelClass.getIdBindingPolicy() == IdBindingPolicy.Singleton)
+//          buffer.append(indentation + String.format(affectationFormat, targetVariableName,
+//                  "smallSession.getLocalSingletonRef(" + toString(modelType, true, false, true) + ".class)") + ";\n");
+//    }
 
     else if (parameterType.getTypeKind() == TypeKind.Declared) {
       DeclaredType declaredType = (DeclaredType) parameterType;

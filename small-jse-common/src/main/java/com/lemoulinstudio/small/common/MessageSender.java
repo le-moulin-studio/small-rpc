@@ -11,7 +11,7 @@ import java.nio.ByteBuffer;
  *
  * @author Vincent Cantin
  */
-public interface MessageListener {
+public interface MessageSender {
 
   /**
    * Notifies that a Small session wants the binary message specified in argument
@@ -19,6 +19,6 @@ public interface MessageListener {
    *
    * @param binaryMessage The binary message that have to be sent to his destination.
    */
-  public void notifyMessage(ByteBuffer binaryMessage);
+  public void sendMessage(ByteBuffer binaryMessage);
   
 }

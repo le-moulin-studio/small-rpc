@@ -28,26 +28,28 @@ public abstract class CodeGenerator {
 
   protected ClassName getInterfaceName(ModelClass modelClass) {
     return new ClassName(config.getOutputBasePackage() + "." +
-            removeInputPackage(modelClass.getPackageName()) +
+            removeFromBeginning(modelClass.getPackageName(),
+            (modelClass.isLocalSide() ? config.getInputLocalBasePackage() : config.getInputRemoteBasePackage())) +
             (modelClass.isLocalSide() ? "local." : "remote.") +
             modelClass.getSimpleName());
   }
 
   protected ClassName getProxyName(ModelClass modelClass) {
     return new ClassName(config.getOutputBasePackage() + "." +
-            removeInputPackage(modelClass.getPackageName()) +
+            removeFromBeginning(modelClass.getPackageName(), config.getInputRemoteBasePackage()) +
             "proxy." + modelClass.getSimpleName() + "Proxy");
   }
 
   protected ClassName getDecoderName(ModelClass modelClass) {
     return new ClassName(config.getOutputBasePackage() + "." +
-            removeInputPackage(modelClass.getPackageName()) +
+            removeFromBeginning(modelClass.getPackageName(), config.getInputLocalBasePackage()) +
             "decoder." + modelClass.getSimpleName() + "Decoder");
   }
 
-  protected String removeInputPackage(String name) {
-    return name.substring(name.startsWith(config.getInputBasePackage()) ?
-      config.getInputBasePackage().length() : 0);
+  protected String removeFromBeginning(String name, String toBeRemoved) {
+    if (name.startsWith(toBeRemoved))
+      return name.substring(toBeRemoved.length());
+    else return name;
   }
 
   protected CharSequence getCommaSeparatedSequence(List<? extends CharSequence> list) {

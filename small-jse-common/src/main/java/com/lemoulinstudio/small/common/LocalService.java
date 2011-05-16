@@ -10,5 +10,5 @@ package com.lemoulinstudio.small.common;
  *
  * @author Vincent Cantin
  */
-public interface Local {
+public interface LocalService {
 }

@@ -2,7 +2,6 @@ package com.lemoulinstudio.small.apt.generator;
 
 import com.lemoulinstudio.small.jse.SmallSessionImpl;
 import com.lemoulinstudio.small.jse.AbstractConfiguration;
-import com.lemoulinstudio.small.jse.Decoder;
 import com.lemoulinstudio.small.jse.Proxy;
 import com.lemoulinstudio.small.jse.RootDecoder;
 
@@ -17,7 +16,6 @@ public class JseCodeGenerator extends JavaCodeGenerator {
             AbstractConfiguration.class,
             Proxy.class,
             RootDecoder.class,
-            Decoder.class,
             "",
             "");
   }
