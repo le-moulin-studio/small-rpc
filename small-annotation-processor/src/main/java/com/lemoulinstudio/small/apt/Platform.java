@@ -2,7 +2,7 @@ package com.lemoulinstudio.small.apt;
 
 import com.lemoulinstudio.small.apt.generator.CodeGenerator;
 import com.lemoulinstudio.small.apt.generator.CppCodeGenerator;
-import com.lemoulinstudio.small.apt.generator.JseCodeGenerator;
+import com.lemoulinstudio.small.apt.generator.JavaCodeGenerator;
 
 /**
  *
@@ -10,7 +10,7 @@ import com.lemoulinstudio.small.apt.generator.JseCodeGenerator;
  */
 public enum Platform {
   
-  Jse("jse", JseCodeGenerator.class),
+  Java("java", JavaCodeGenerator.class),
   Cpp("cpp", CppCodeGenerator.class),
   ;
 

@@ -1,9 +1,6 @@
 package com.lemoulinstudio.small.jse;
 
-import com.lemoulinstudio.small.common.LocalService;
-import com.lemoulinstudio.small.common.MessageSender;
-import com.lemoulinstudio.small.common.RemoteService;
-import com.lemoulinstudio.small.utils.ByteBufferInputStream;
+import com.lemoulinstudio.small.jse.utils.ByteBufferInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.nio.ByteBuffer;
@@ -24,8 +21,8 @@ public class SmallSessionImpl implements SmallSession {
   private Map<Class<? extends RemoteService>, RemoteService> interfaceToProxy;
   private Map<RemoteService, Class<? extends RemoteService>> proxyToInterface;
 
-  private ProxyFactory proxyFactory;
-  private RootDecoder rootDecoder;
+  private Map<Class<? extends RemoteService>, Class<? extends Proxy>> remoteServiceClassToProxyClass;
+  private Decoder rootDecoder;
 
   private MessageSender messageSender;
   private Object callerObject;
@@ -44,8 +41,8 @@ public class SmallSessionImpl implements SmallSession {
     interfaceToProxy = new HashMap<Class<? extends RemoteService>, RemoteService>();
     proxyToInterface = new HashMap<RemoteService, Class<? extends RemoteService>>();
 
-    proxyFactory = new ProxyFactoryImpl(config.getRemoteClassToProxyClass());
-    rootDecoder = config.getRootDecoder();
+    remoteServiceClassToProxyClass = config.getRemoteServiceClassToProxyClass();
+    rootDecoder = config.getDecoder();
   }
 
   /**
@@ -119,10 +116,17 @@ public class SmallSessionImpl implements SmallSession {
   @Override
   public <T extends RemoteService> T createProxy(Class<T> serviceInterface) {
     assert !interfaceToProxy.containsKey(serviceInterface) : "There is already a proxy created for to this interface.";
-    T proxy = proxyFactory.createProxy(this, serviceInterface);
-    proxyToInterface.put(proxy, serviceInterface);
-    interfaceToProxy.put(serviceInterface, proxy);
-    return proxy;
+    
+    try {
+      Class<? extends Proxy> proxyClass = remoteServiceClassToProxyClass.get(serviceInterface);
+      T proxy = (T) proxyClass.getConstructor(SmallSessionImpl.class).newInstance(this);
+      proxyToInterface.put(proxy, serviceInterface);
+      interfaceToProxy.put(serviceInterface, proxy);
+      return proxy;
+    }
+    catch (Exception ex) {
+      throw new RuntimeException(ex);
+    }
   }
 
   /**

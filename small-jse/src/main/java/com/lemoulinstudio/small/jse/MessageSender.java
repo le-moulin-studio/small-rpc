@@ -1,4 +1,4 @@
-package com.lemoulinstudio.small.common;
+package com.lemoulinstudio.small.jse;
 
 import java.nio.ByteBuffer;
 

@@ -13,11 +13,4 @@
   <packaging>jar</packaging>
   <name>Small Jse</name>
 
-  <dependencies>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>small-jse-common</artifactId>
-    </dependency>
-  </dependencies>
-  
 </project>

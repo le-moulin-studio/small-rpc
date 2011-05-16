@@ -35,8 +35,6 @@ import javax.tools.Diagnostic;
  *     -AinputRemoteBasePackage=inputRemoteBasePackage
  *     -AoutputBasePackage=outputBasePackage
  *     [-AconfigurationClass=configurationClass]
- *     [-ArootRemoteClass=rootRemoteClass]
- *     [-ArootProxyClass=rootProxyClass]
  *     [-ArootDecoderClass=rootDecoderClass]
  *     [-AnoLog]
  *     [-Averbose]
@@ -51,7 +49,7 @@ import javax.tools.Diagnostic;
  * <p><code>platform</code> is the platform where your program is running. For now, you can
  * use one of the following values:
  * <ul>
- * <li>"<code>jse</code>" for the JavaSE applications.</li>
+ * <li>"<code>java</code>" for the Java applications.</li>
  * <li>"<code>cpp</code>" for the C++ applications.</li>
  * </ul>
  * </p>
@@ -68,10 +66,10 @@ import javax.tools.Diagnostic;
  *     -processor com.lemoulinstudio.small.apt.SmallAnnotationProcessor
  *     -sourcepath src/main/java/
  *     -s target/generated-sources/rpc-stuffs/
- *     -Aplatform=jse
- *     -AinputLocalBasePackage=game.networkmodel.client
- *     -AinputRemoteBasePackage=game.networkmodel.server
- *     -AoutputBasePackage=game.client.network
+ *     -Aplatform=java
+ *     -AinputLocalBasePackage=org.example.myapp.rpc.protocol.client
+ *     -AinputRemoteBasePackage=org.example.myapp.rpc.protocol.server
+ *     -AoutputBasePackage=org.example.myapp.rpc.client
  *     -Averbose
  * </pre>
  * </p>

@@ -1,8 +1,5 @@
 package com.lemoulinstudio.small.jse;
 
-import com.lemoulinstudio.small.common.LocalService;
-import com.lemoulinstudio.small.common.MessageSender;
-import com.lemoulinstudio.small.common.RemoteService;
 import java.nio.ByteBuffer;
 
 /**

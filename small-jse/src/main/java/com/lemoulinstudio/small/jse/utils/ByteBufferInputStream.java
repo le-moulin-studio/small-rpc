@@ -1,4 +1,4 @@
-package com.lemoulinstudio.small.utils;
+package com.lemoulinstudio.small.jse.utils;
 
 import java.io.IOException;
 import java.io.InputStream;

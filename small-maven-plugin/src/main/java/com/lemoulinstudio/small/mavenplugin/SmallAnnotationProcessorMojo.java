@@ -44,14 +44,14 @@ public class SmallAnnotationProcessorMojo extends AbstractMojo {
   private MavenProject project;
 
   /**
-   * The platform type for the caller.
+   * The target platform.
    * @parameter
    * @required
    */
   private String platform;
 
   /**
-   * The artifact that contains the network model.
+   * The artifact that contains the RPC protocol.
    * @parameter
    * @required
    */
@@ -94,18 +94,6 @@ public class SmallAnnotationProcessorMojo extends AbstractMojo {
   private String configurationClass;
 
   /**
-   * The root remote qualified classname.
-   * @parameter
-   */
-  private String rootRemoteClass;
-
-  /**
-   * The root proxy qualified classname.
-   * @parameter
-   */
-  private String rootProxyClass;
-
-  /**
    * The root decoder qualified classname.
    * @parameter
    */
@@ -125,28 +113,6 @@ public class SmallAnnotationProcessorMojo extends AbstractMojo {
 
   @Override
   public void execute() throws MojoExecutionException {
-    /*
-    System.out.println("$$$ platform = " + platform);
-    System.out.println("$$$ sourceDirectory = " + sourceDirectory.getAbsolutePath());
-    System.out.println("$$$ outputDirectory = " + outputDirectory.getAbsolutePath());
-    System.out.println("$$$ inputBasePackage = " + inputBasePackage);
-    System.out.println("$$$ outputBasePackage = " + outputBasePackage);
-    System.out.println("$$$ verbose = " + verbose);
-
-    try {
-      println("project.getCompileClasspathElements", project.getCompileClasspathElements());
-      println("project.getCompileArtifacts", project.getCompileArtifacts());
-      println("project.getCompileDependencies", project.getCompileDependencies());
-      println("project.getDependencyArtifacts", project.getDependencyArtifacts());
-      println("project.getArtifactMap", project.getArtifactMap().keySet());
-      println("project.getArtifacts", project.getArtifacts());
-      printDeps("project.getRuntimeDependencies", project.getRuntimeDependencies());
-      printDeps("project.getDependencies", project.getDependencies());
-    } catch (DependencyResolutionRequiredException ex) {
-      Logger.getLogger(SmallAnnotationProcessorMojo.class.getName()).log(Level.SEVERE, null, ex);
-    }
-    */
-
     // Prepare the destination directory.
     File generatedSourceDir = new File(outputDirectory, "generated-sources/small-maven-plugin/");
     if (!generatedSourceDir.exists()) generatedSourceDir.mkdirs();
@@ -161,11 +127,8 @@ public class SmallAnnotationProcessorMojo extends AbstractMojo {
       Set<File> files = new HashSet<File>();
       //String sourceDirectoryPaths = "";
       
-      for (int i = 0; i < sourceDirectories.length; i++) {
+      for (int i = 0; i < sourceDirectories.length; i++)
         files.addAll(FileUtils.getFiles(sourceDirectories[i], "**/*.java", null));
-        //if (i > 0) sourceDirectoryPaths += File.pathSeparator;
-        //sourceDirectoryPaths += sourceDirectories[i].getPath();
-      }
 
       Iterable<? extends JavaFileObject> compilationUnits =
           fileManager.getJavaFileObjectsFromFiles(files);
@@ -187,12 +150,6 @@ public class SmallAnnotationProcessorMojo extends AbstractMojo {
       if (configurationClass != null)
         options.add("-A" + APConfig.configurationClassOption + "=" + configurationClass);
 
-      if (rootRemoteClass != null)
-        options.add("-A" + APConfig.rootRemoteClassOption + "=" + rootRemoteClass);
-
-      if (rootProxyClass != null)
-        options.add("-A" + APConfig.rootProxyClassOption + "=" + rootProxyClass);
-      
       if (rootDecoderClass != null)
         options.add("-A" + APConfig.rootDecoderClassOption + "=" + rootDecoderClass);
 

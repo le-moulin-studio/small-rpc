@@ -1,4 +1,4 @@
-package com.lemoulinstudio.small.utils;
+package com.lemoulinstudio.small.jse.utils;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Proxy;

@@ -19,10 +19,7 @@ public class APConfig {
   public static final String inputRemoteBasePackageOption = "inputRemoteBasePackage";
   public static final String outputBasePackageOption = "outputBasePackage";
   public static final String configurationClassOption = "configurationClass";
-  public static final String rootRemoteClassOption = "rootRemoteClass";
-  public static final String rootProxyClassOption = "rootProxyClass";
   public static final String rootDecoderClassOption = "rootDecoderClass";
-  public static final String embedSingletonProxiesOption = "embedSingletonProxies";
   public static final String noLogOption = "noLog";
   public static final String verboseOption = "verbose";
 
@@ -37,8 +34,6 @@ public class APConfig {
             inputRemoteBasePackageOption,
             outputBasePackageOption,
             configurationClassOption,
-            rootRemoteClassOption,
-            rootProxyClassOption,
             rootDecoderClassOption,
             noLogOption,
             verboseOption
@@ -50,8 +45,6 @@ public class APConfig {
   private String inputRemoteBasePackage;
   private String outputBasePackage;
   private ClassName configurationClassName;
-  private ClassName rootRemoteClassName;
-  private ClassName rootProxyClassName;
   private ClassName rootDecoderClassName;
   private boolean noLog;
   private boolean verbose;
@@ -70,8 +63,6 @@ public class APConfig {
     outputBasePackage = readOptionValue(outputBasePackageOption, "small.generated");
 
     configurationClassName = new ClassName(readOptionValue(configurationClassOption, outputBasePackage + ".Configuration"));
-    rootRemoteClassName = new ClassName(readOptionValue(rootRemoteClassOption, outputBasePackage + ".Root"));
-    rootProxyClassName = new ClassName(readOptionValue(rootProxyClassOption, outputBasePackage + ".RootProxy"));
     rootDecoderClassName = new ClassName(readOptionValue(rootDecoderClassOption, outputBasePackage + ".RootDecoder"));
 
     noLog = readBooleanOptionValue(noLogOption, false);
@@ -96,14 +87,6 @@ public class APConfig {
 
   public ClassName getConfigurationClassName() {
     return configurationClassName;
-  }
-
-  public ClassName getRootRemoteClassName() {
-    return rootRemoteClassName;
-  }
-
-  public ClassName getRootProxyClassName() {
-    return rootProxyClassName;
   }
 
   public ClassName getRootDecoderClassName() {

@@ -11,9 +11,13 @@ import com.lemoulinstudio.small.apt.type.PrimitiveType;
 import com.lemoulinstudio.small.apt.type.PrimitiveWrapperType;
 import com.lemoulinstudio.small.apt.type.Type;
 import com.lemoulinstudio.small.apt.type.TypeKind;
-import com.lemoulinstudio.small.common.LocalService;
-import com.lemoulinstudio.small.common.RemoteService;
-import com.lemoulinstudio.small.utils.Utils;
+import com.lemoulinstudio.small.jse.AbstractConfiguration;
+import com.lemoulinstudio.small.jse.Decoder;
+import com.lemoulinstudio.small.jse.LocalService;
+import com.lemoulinstudio.small.jse.Proxy;
+import com.lemoulinstudio.small.jse.RemoteService;
+import com.lemoulinstudio.small.jse.SmallSessionImpl;
+import com.lemoulinstudio.small.jse.utils.Utils;
 import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
@@ -36,23 +40,13 @@ public class JavaCodeGenerator extends CodeGenerator {
   private Class smallSessionClass;
   private Class generatedConfigClass;
   private Class proxyClass;
-  private Class rootDecoderClass;
-  private String implementSerializable;
-  private String serialVersionUIDField;
+  private Class decoderClass;
 
-  public JavaCodeGenerator(
-          Class smallSessionClass,
-          Class generatedConfigClass,
-          Class proxyClass,
-          Class rootDecoderClass,
-          String implementSerializable,
-          String serialVersionUIDField) {
-    this.smallSessionClass = smallSessionClass;
-    this.generatedConfigClass = generatedConfigClass;
-    this.proxyClass = proxyClass;
-    this.rootDecoderClass = rootDecoderClass;
-    this.implementSerializable = implementSerializable;
-    this.serialVersionUIDField = serialVersionUIDField;
+  public JavaCodeGenerator() {
+    this.smallSessionClass = SmallSessionImpl.class;
+    this.generatedConfigClass = AbstractConfiguration.class;
+    this.proxyClass = Proxy.class;
+    this.decoderClass = Decoder.class;
   }
   
   @Override
@@ -87,14 +81,18 @@ public class JavaCodeGenerator extends CodeGenerator {
     buffer.append("package " + config.getConfigurationClassName().getPackageName() + ";\n");
     buffer.append("\n");
     buffer.append("public class " + config.getConfigurationClassName().getSimpleName() +
-            " implements " + generatedConfigClass.getName() +
-            implementSerializable + " {\n");
+            " implements " + generatedConfigClass.getName() + " {\n");
 
-    buffer.append(serialVersionUIDField);
     buffer.append("\n");
+    
+    String mapTypeName = "java.util.Map<Class<? extends " + RemoteService.class.getName() + ">, " +
+            "Class<? extends " + proxyClass.getName() + ">>";
+    String hashmapTypeName = "java.util.HashMap<Class<? extends " + RemoteService.class.getName() + ">, " +
+            "Class<? extends " + proxyClass.getName() + ">>";
+    
     buffer.append("  @Override\n");
-    buffer.append("  public java.util.Map<Class<? extends " + RemoteService.class.getName() + ">, Class> getRemoteClassToProxyClass() {\n");
-    buffer.append("    java.util.Map<Class<? extends " + RemoteService.class.getName() + ">, Class> result = new java.util.HashMap<Class<? extends " + RemoteService.class.getName() + ">, Class>();\n");
+    buffer.append("  public " + mapTypeName + " getRemoteServiceClassToProxyClass() {\n");
+    buffer.append("    " + mapTypeName + " result = new " + hashmapTypeName + "();\n");
     for (ModelClass modelClass : modelClasseList)
       buffer.append("    result.put(" + getInterfaceName(modelClass).getQualifiedName() + ".class, " + getProxyName(modelClass).getQualifiedName() + ".class);\n");
     buffer.append("    return result;\n");
@@ -102,7 +100,7 @@ public class JavaCodeGenerator extends CodeGenerator {
 
     buffer.append("\n");
     buffer.append("  @Override\n");
-    buffer.append("  public " + rootDecoderClass.getName() + " getRootDecoder() {\n");
+    buffer.append("  public " + decoderClass.getName() + " getDecoder() {\n");
     buffer.append("    return new " + config.getRootDecoderClassName().getQualifiedName() + "();\n");
     buffer.append("  }\n");
     
@@ -112,137 +110,14 @@ public class JavaCodeGenerator extends CodeGenerator {
     writeFileContent(config.getConfigurationClassName().getQualifiedName(), buffer);
   }
 
-  protected void generateRootRemoteInterface(List<ModelClass> modelClassList) {
-    StringBuffer buffer = new StringBuffer();
-    buffer.append("package " + config.getRootRemoteClassName().getPackageName() + ";\n");
-    buffer.append("\n");
-    buffer.append(getGeneratedTag() + "\n");
-    buffer.append("public interface " + config.getRootRemoteClassName().getSimpleName() +
-            " extends " + RemoteService.class.getName() + " {\n");
-
-    for (ModelClass modelClass : modelClassList) {
-      for (ModelMethod modelMethod : modelClass.getMethodList()) {
-        List<String> parameterTextList = new ArrayList<String>();
-        for (ModelParameter modelParameter : modelMethod.getParameterList())
-          parameterTextList.add(toString(modelParameter.getType(), modelClass.isLocalSide(), false) +
-                  " " + modelParameter.getName());
-
-        buffer.append("  public void " + modelClass.getSimpleName() + "_" + modelMethod.getName() +
-                "(" + getCommaSeparatedSequence(parameterTextList) + ");\n");
-      }
-    }
-
-    buffer.append("}\n");
-    
-    writeFileContent(config.getRootRemoteClassName().getQualifiedName(), buffer);
-  }
-
-  protected void generateRootProxy(List<ModelClass> modelClassList) {
-    // Choose the right way to encode the methodIDs with respect to their cardinal.
-    String writeMethodIdFormat;
-    if (modelData.getNumberOfMethodsOnSameSide() <= 1) writeMethodIdFormat = "// No need to write the methodId.";
-    else if (modelData.getNumberOfMethodsOnSameSide() <= 256) writeMethodIdFormat = "outputStream.writeByte(%s);";
-    else if (modelData.getNumberOfMethodsOnSameSide() <= 65536) writeMethodIdFormat = "outputStream.writeShort(%s);";
-    else writeMethodIdFormat = "outputStream.writeInt(%s);";
-
-    // Start to generate the proxy.
-    StringBuffer buffer = new StringBuffer();
-
-    buffer.append("package " + config.getRootProxyClassName().getPackageName() + ";\n");
-    buffer.append("\n");
-    buffer.append(getGeneratedTag() + "\n");
-    buffer.append("public class " + config.getRootProxyClassName().getSimpleName() +
-            " extends " + proxyClass.getName() + "<" + config.getRootRemoteClassName().getQualifiedName() + ">" +
-            " implements " + config.getRootRemoteClassName().getQualifiedName() +
-            implementSerializable + " {\n");
-
-    buffer.append(serialVersionUIDField);
-
-    // The constructor.
-    buffer.append("\n");
-    buffer.append("  public " + config.getRootProxyClassName().getSimpleName() +
-            "(" + smallSessionClass.getName() + " smallSession) {\n");
-    buffer.append("    super(smallSession);\n");
-    buffer.append("  }\n");
-
-    for (ModelClass modelClass : modelClassList) {
-      for (ModelMethod modelMethod : modelClass.getMethodList()) {
-        List<String> parameterTextList = new ArrayList<String>();
-        for (ModelParameter modelParameter : modelMethod.getParameterList())
-          parameterTextList.add(toString(modelParameter.getType(), modelClass.isLocalSide(), false) +
-                  " param_" + modelParameter.getName());
-
-        buffer.append("\n");
-        buffer.append("  @Override\n");
-        buffer.append("  public void " + modelClass.getSimpleName() + "_" + modelMethod.getName() + "(" + getCommaSeparatedSequence(parameterTextList) + ") {\n");
-
-//        if (config.getPlatform() == Platform.RedDwarfServer)
-//          buffer.append("    " + com.lemoulinstudio.small.rds.SmallSessionImpl.class.getName() + " smallSession = smallSessionRef.get();\n");
-        buffer.append("    java.io.ByteArrayOutputStream byteArrayStream = new java.io.ByteArrayOutputStream();\n");
-        buffer.append("    java.io.DataOutputStream outputStream = new java.io.DataOutputStream(byteArrayStream);\n");
-
-        // Open the "try".
-        buffer.append("\n");
-        buffer.append("    try {\n");
-
-        // Encode the method's Id.
-        buffer.append("      // Encode the method's Id.\n");
-        buffer.append("      " + String.format(writeMethodIdFormat, modelMethod.getMethodId()) + "\n");
-        buffer.append("\n");
-
-        // Encode the targeted object's Id.
-        buffer.append("      // Encode the target object's reference.\n");
-        buffer.append(getEncodingSourceCode("      ",
-                "messageTarget",
-                "outputStream",
-                new ModelType(modelClass),
-                0));
-
-        // Encode the parameter's values.
-        for (ModelParameter modelParameter : modelMethod.getParameterList()) {
-          buffer.append("\n");
-          buffer.append("      // Encode the parameter param_" + modelParameter.getName() + ".\n");
-          buffer.append(getEncodingSourceCode("      ",
-                  "param_" + modelParameter.getName(),
-                  "outputStream",
-                  modelParameter.getType(),
-                  0));
-        }
-
-        // Close the "try" with a "catch" which does nothing.
-        buffer.append("    }\n");
-        buffer.append("    catch (java.io.IOException e) {}\n");
-        buffer.append("\n");
-
-        // Eventually log the message.
-        if (modelMethod.shouldLogMethodInvocation()) {
-          buffer.append("    // Log the method call.\n");
-          buffer.append("    smallSession.logText(\"-> \"" + getArgumentLogText("this", modelMethod) + ");\n");
-          buffer.append("\n");
-        }
-
-        // Send the message.
-        buffer.append("    // Send the message.\n");
-        buffer.append("    smallSession.sendMessage(byteArrayStream);\n");
-        buffer.append("  }\n");
-      }
-    }
-
-    buffer.append("}\n");
-
-    writeFileContent(config.getRootProxyClassName().getQualifiedName(), buffer);
-  }
-
   protected void generateRootDecoder(List<ModelClass> modelClassList) {
     StringBuffer buffer = new StringBuffer();
 
     buffer.append("package " + config.getRootDecoderClassName().getPackageName() + ";\n");
     buffer.append("\n");
     buffer.append("public class " + config.getRootDecoderClassName().getSimpleName() +
-            " implements " + rootDecoderClass.getName() +
-            implementSerializable + " {\n");
+            " implements " + decoderClass.getName() + " {\n");
 
-    buffer.append(serialVersionUIDField);
     buffer.append("\n");
     buffer.append("  @Override\n");
     buffer.append("  public void decodeAndInvoke(" + smallSessionClass.getName() + " smallSession, java.io.DataInputStream inputStream) throws java.io.IOException {\n");
@@ -370,10 +245,7 @@ public class JavaCodeGenerator extends CodeGenerator {
     buffer.append(getGeneratedTag() + "\n");
     buffer.append("public class " + getProxyName(modelClass).getSimpleName() +
             " extends " + proxyClass.getName() + "<" + getInterfaceName(modelClass).getQualifiedName() + ">" +
-            " implements " + getInterfaceName(modelClass).getQualifiedName() +
-            implementSerializable + " {\n");
-
-    buffer.append(serialVersionUIDField);
+            " implements " + getInterfaceName(modelClass).getQualifiedName() + " {\n");
 
     // The constructor.
     buffer.append("\n");
@@ -438,9 +310,6 @@ public class JavaCodeGenerator extends CodeGenerator {
     buffer.append("}\n");
 
     writeFileContent(getProxyName(modelClass).getQualifiedName(), buffer);
-  }
-
-  protected void generateClassDecoder(ModelClass modelClass) {
   }
 
   protected void writeFileContent(String fileName, CharSequence content) {
