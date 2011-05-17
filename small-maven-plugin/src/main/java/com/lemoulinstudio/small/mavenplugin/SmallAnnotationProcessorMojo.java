@@ -30,7 +30,7 @@ import org.codehaus.plexus.util.FileUtils;
  * for a better integration into the build process.
  *
  * @phase generate-sources
- * @goal generate-network-files
+ * @goal generate-rpc-files
  * @requiresDependencyResolution
  */
 public class SmallAnnotationProcessorMojo extends AbstractMojo {
