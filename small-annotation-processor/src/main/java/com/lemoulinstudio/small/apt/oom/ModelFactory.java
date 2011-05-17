@@ -1,7 +1,7 @@
 package com.lemoulinstudio.small.apt.oom;
 
 import com.lemoulinstudio.small.apt.APConfig;
-import com.lemoulinstudio.small.apt.model.CallerObject;
+import com.lemoulinstudio.small.apt.model.Caller;
 import com.lemoulinstudio.small.apt.model.Log;
 import com.lemoulinstudio.small.apt.model.Service;
 import com.lemoulinstudio.small.apt.model.NoLog;
@@ -173,7 +173,12 @@ public class ModelFactory {
     modelParameter.parentModelMethod = parentModelMethod;
     modelParameter.type = createType(parameterElement.asType());
     modelParameter.name = parameterElement.getSimpleName().toString();
-    modelParameter.isCallerObject = parameterElement.getAnnotation(CallerObject.class) != null;
+    
+    modelParameter.isCallerObject = hasCallerType(parameterElement.asType());
+    if (modelParameter.isCallerObject)
+      modelParameter.type = new DeclaredType(
+              config.getCallerObjectClassName().getQualifiedName(),
+              null, Collections.<Type>emptyList(), Collections.<Type>emptyList());
     
     return modelParameter;
   }
@@ -234,7 +239,14 @@ public class ModelFactory {
       return new DeclaredType(typeName, superType, implementedTypeList, genericArgumentTypeList);
     }
   }
-  
+
+  private boolean hasCallerType(TypeMirror parameterType) {
+    if (parameterType.getKind() != TypeKind.DECLARED) return false;
+    javax.lang.model.type.DeclaredType parameterDeclaredType = (javax.lang.model.type.DeclaredType) parameterType;
+    TypeElement typeElement = (TypeElement) parameterDeclaredType.asElement();
+    return typeElement.getQualifiedName().contentEquals(Caller.class.getName());
+  }
+
   private static class ModelClassComparator implements Comparator<ModelClass> {
     @Override
     public int compare(ModelClass o1, ModelClass o2) {

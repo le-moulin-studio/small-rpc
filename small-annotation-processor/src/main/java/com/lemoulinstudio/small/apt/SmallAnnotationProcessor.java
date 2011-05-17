@@ -1,7 +1,6 @@
 package com.lemoulinstudio.small.apt;
 
 import com.lemoulinstudio.small.apt.generator.CodeGenerator;
-import com.lemoulinstudio.small.apt.model.CallerObject;
 import com.lemoulinstudio.small.apt.model.Service;
 import com.lemoulinstudio.small.apt.model.NoLog;
 import com.lemoulinstudio.small.apt.model.Log;
@@ -36,6 +35,7 @@ import javax.tools.Diagnostic;
  *     -AoutputBasePackage=outputBasePackage
  *     [-AconfigurationClass=configurationClass]
  *     [-ArootDecoderClass=rootDecoderClass]
+ *     [-AcallerObjectClass=callerObjectClass]
  *     [-AnoLog]
  *     [-Averbose]
  * </pre>
@@ -93,7 +93,6 @@ public class SmallAnnotationProcessor extends AbstractProcessor {
   @Override
   public Set<String> getSupportedAnnotationTypes() {
     List<Class> supportedAnnotationTypeList = Arrays.<Class>asList(
-            CallerObject.class,
             Log.class,
             Service.class,
             NoLog.class);

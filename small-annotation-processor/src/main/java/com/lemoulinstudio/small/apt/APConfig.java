@@ -20,6 +20,7 @@ public class APConfig {
   public static final String outputBasePackageOption = "outputBasePackage";
   public static final String configurationClassOption = "configurationClass";
   public static final String rootDecoderClassOption = "rootDecoderClass";
+  public static final String callerObjectClassOption = "callerObjectClass";
   public static final String noLogOption = "noLog";
   public static final String verboseOption = "verbose";
 
@@ -35,6 +36,7 @@ public class APConfig {
             outputBasePackageOption,
             configurationClassOption,
             rootDecoderClassOption,
+            callerObjectClassOption,
             noLogOption,
             verboseOption
             ));
@@ -46,6 +48,7 @@ public class APConfig {
   private String outputBasePackage;
   private ClassName configurationClassName;
   private ClassName rootDecoderClassName;
+  private ClassName callerObjectClassName;
   private boolean noLog;
   private boolean verbose;
 
@@ -64,6 +67,8 @@ public class APConfig {
 
     configurationClassName = new ClassName(readOptionValue(configurationClassOption, outputBasePackage + ".Configuration"));
     rootDecoderClassName = new ClassName(readOptionValue(rootDecoderClassOption, outputBasePackage + ".RootDecoder"));
+    
+    callerObjectClassName = new ClassName(readOptionValue(callerObjectClassOption, "java.lang.Object"));
 
     noLog = readBooleanOptionValue(noLogOption, false);
     verbose = readBooleanOptionValue(verboseOption, false);
@@ -91,6 +96,10 @@ public class APConfig {
 
   public ClassName getRootDecoderClassName() {
     return rootDecoderClassName;
+  }
+
+  public ClassName getCallerObjectClassName() {
+    return callerObjectClassName;
   }
 
   public boolean isNoLog() {

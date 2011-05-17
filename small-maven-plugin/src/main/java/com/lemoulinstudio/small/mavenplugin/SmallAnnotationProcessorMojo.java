@@ -65,7 +65,6 @@ public class SmallAnnotationProcessorMojo extends AbstractMojo {
    */
   private File outputDirectory;
 
-
   /**
    * The base package for local services in the model.
    * @parameter
@@ -98,6 +97,12 @@ public class SmallAnnotationProcessorMojo extends AbstractMojo {
    * @parameter
    */
   private String rootDecoderClass;
+  
+  /**
+   * The caller object qualified classname.
+   * @parameter
+   */
+  private String callerObjectClass;
 
   /**
    * The noLog flag.
@@ -152,6 +157,9 @@ public class SmallAnnotationProcessorMojo extends AbstractMojo {
 
       if (rootDecoderClass != null)
         options.add("-A" + APConfig.rootDecoderClassOption + "=" + rootDecoderClass);
+
+      if (callerObjectClass != null)
+        options.add("-A" + APConfig.callerObjectClassOption + "=" + callerObjectClass);
 
       if (noLog)
         options.add("-A" + APConfig.noLogOption);
