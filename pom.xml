@@ -35,6 +35,7 @@
     <module>small-annotation-processor</module>
     <module>small-maven-plugin</module>
     <module>small-jse</module>
+    <module>small-mina</module>
   </modules>
 
   <properties>
@@ -143,6 +144,18 @@
         <groupId>${project.groupId}</groupId>
         <artifactId>small-jse</artifactId>
         <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>${project.groupId}</groupId>
+        <artifactId>small-mina</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      
+      <dependency>
+        <groupId>org.apache.mina</groupId>
+        <artifactId>mina-core</artifactId>
+        <version>2.0.3</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

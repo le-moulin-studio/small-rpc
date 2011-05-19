@@ -11,7 +11,7 @@
   <groupId>com.lemoulinstudio.small</groupId>
   <artifactId>small-annotation-processor</artifactId>
   <packaging>jar</packaging>
-  <name>Small Annotation Processor</name>
+  <name>Small - Annotation Processor</name>
 
   <dependencies>
     <dependency>
