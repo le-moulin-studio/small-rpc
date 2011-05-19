@@ -1,6 +1,6 @@
-package com.lemoulinstudio.small.jse;
+package com.lemoulinstudio.small;
 
-import com.lemoulinstudio.small.jse.utils.ByteBufferInputStream;
+import com.lemoulinstudio.small.util.ByteBufferInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.nio.ByteBuffer;

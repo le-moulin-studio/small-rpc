@@ -9,8 +9,8 @@
   </parent>
 
   <groupId>com.lemoulinstudio.small</groupId>
-  <artifactId>small-jse</artifactId>
+  <artifactId>small-java</artifactId>
   <packaging>jar</packaging>
-  <name>Small - Jse</name>
+  <name>Small - Java</name>
 
 </project>

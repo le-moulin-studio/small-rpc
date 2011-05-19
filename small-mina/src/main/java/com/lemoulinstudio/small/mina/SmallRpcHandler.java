@@ -1,10 +1,10 @@
 package com.lemoulinstudio.small.mina;
 
-import com.lemoulinstudio.small.jse.AbstractConfiguration;
-import com.lemoulinstudio.small.jse.LocalService;
-import com.lemoulinstudio.small.jse.MessageSender;
-import com.lemoulinstudio.small.jse.SmallSession;
-import com.lemoulinstudio.small.jse.SmallSessionImpl;
+import com.lemoulinstudio.small.AbstractConfiguration;
+import com.lemoulinstudio.small.LocalService;
+import com.lemoulinstudio.small.MessageSender;
+import com.lemoulinstudio.small.SmallSession;
+import com.lemoulinstudio.small.SmallSessionImpl;
 import java.nio.ByteBuffer;
 import org.apache.mina.core.service.IoHandlerAdapter;
 import org.apache.mina.core.session.AttributeKey;

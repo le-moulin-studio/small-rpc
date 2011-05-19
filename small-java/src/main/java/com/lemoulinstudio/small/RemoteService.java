@@ -1,4 +1,4 @@
-package com.lemoulinstudio.small.jse;
+package com.lemoulinstudio.small;
 
 /**
  * <p>An interface that is used to tag the "remote interfaces" generated

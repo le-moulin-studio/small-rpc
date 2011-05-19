@@ -34,7 +34,7 @@
     <module>small-model</module>
     <module>small-annotation-processor</module>
     <module>small-maven-plugin</module>
-    <module>small-jse</module>
+    <module>small-java</module>
     <module>small-mina</module>
   </modules>
 
@@ -142,7 +142,7 @@
 
       <dependency>
         <groupId>${project.groupId}</groupId>
-        <artifactId>small-jse</artifactId>
+        <artifactId>small-java</artifactId>
         <version>${project.version}</version>
       </dependency>
 

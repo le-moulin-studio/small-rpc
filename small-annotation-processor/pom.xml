@@ -21,7 +21,7 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>small-jse</artifactId>
+      <artifactId>small-java</artifactId>
     </dependency>
   </dependencies>
 
