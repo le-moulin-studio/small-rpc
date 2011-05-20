@@ -1,5 +1,6 @@
 package com.lemoulinstudio.small.apt.oom;
 
+import com.lemoulinstudio.small.apt.type.Type;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,7 +15,9 @@ public class ModelMethod {
   boolean logMethodInvocation;
   boolean logMessageReception;
   int methodId;
+  int returnMethodId;
   List<ModelParameter> parameterList = new ArrayList<ModelParameter>();
+  Type returnType;
 
   public ModelClass getParentModelClass() {
     return parentModelClass;
@@ -36,9 +39,16 @@ public class ModelMethod {
     return methodId;
   }
 
+  public int getReturnMethodId() {
+    return returnMethodId;
+  }
+
   public List<ModelParameter> getParameterList() {
     return parameterList;
   }
 
-  
+  public Type getReturnType() {
+    return returnType;
+  }
+
 }

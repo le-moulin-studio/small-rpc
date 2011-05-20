@@ -13,6 +13,7 @@ import com.lemoulinstudio.small.apt.type.ModelType;
 import com.lemoulinstudio.small.apt.type.PrimitiveType;
 import com.lemoulinstudio.small.apt.type.PrimitiveWrapperType;
 import com.lemoulinstudio.small.apt.type.Type;
+import com.lemoulinstudio.small.apt.type.VoidType;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -103,19 +104,24 @@ public class ModelFactory {
     for (Element enclosedElement : classElement.getEnclosedElements()) {
       assert enclosedElement.getKind() == ElementKind.METHOD : classElement.getQualifiedName().toString() + " should only contains methods.";
       ExecutableElement methodElement = (ExecutableElement) enclosedElement;
-      assert methodElement.getReturnType().getKind() == javax.lang.model.type.TypeKind.VOID;
 
       modelClass.methodList.add(createModelMethod(modelClass, methodElement));
     }
   }
 
   private void assignMethodIDs(ModelClass modelClass) {
-    if (modelClass.isLocalSide())
-      for (ModelMethod modelMethod : modelClass.getMethodList())
-        modelMethod.methodId = modelData.sameSideMethodId++;
-    else
-      for (ModelMethod modelMethod : modelClass.getMethodList())
-        modelMethod.methodId = modelData.otherSideMethodId++;
+      for (ModelMethod modelMethod : modelClass.getMethodList()) {
+        if (modelClass.isLocalSide()) {
+          modelMethod.methodId = modelData.sameSideMethodId++;
+          if (modelMethod.returnType != VoidType.instance)
+            modelMethod.returnMethodId = modelData.otherSideMethodId++;
+        }
+        else {
+          modelMethod.methodId = modelData.otherSideMethodId++;
+          if (modelMethod.returnType != VoidType.instance)
+            modelMethod.returnMethodId = modelData.sameSideMethodId++;
+        }
+      }
   }
 
   private ModelMethod createModelMethod(ModelClass parentModelClass, ExecutableElement methodElement) {
@@ -157,13 +163,16 @@ public class ModelFactory {
       modelMethod.logMethodInvocation = false;
       modelMethod.logMessageReception = false;
     }
-
+    
     // Parameters.
     for (VariableElement variableElement : methodElement.getParameters()) {
       ModelParameter modelParameter = createModelParameter(modelMethod, variableElement);
       if (!modelParameter.isCallerObject || parentModelClass.isLocalSide())
         modelMethod.parameterList.add(modelParameter);
     }
+
+    // Return type.
+    modelMethod.returnType = createType(methodElement.getReturnType());
 
     return modelMethod;
   }
@@ -189,6 +198,11 @@ public class ModelFactory {
     // If this is not a type.
     if (parameterTypeKind == TypeKind.NONE) {
       return null;
+    }
+
+    // If this is the void type.
+    if (parameterTypeKind == TypeKind.VOID) {
+      return VoidType.instance;
     }
 
     // If the type is a primitive.

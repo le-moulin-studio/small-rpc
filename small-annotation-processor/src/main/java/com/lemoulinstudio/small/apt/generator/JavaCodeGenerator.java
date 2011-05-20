@@ -17,6 +17,7 @@ import com.lemoulinstudio.small.LocalService;
 import com.lemoulinstudio.small.Proxy;
 import com.lemoulinstudio.small.RemoteService;
 import com.lemoulinstudio.small.SmallSessionImpl;
+import com.lemoulinstudio.small.apt.type.VoidType;
 import com.lemoulinstudio.small.util.Utils;
 import java.io.File;
 import java.io.IOException;
@@ -146,7 +147,7 @@ public class JavaCodeGenerator extends CodeGenerator {
           buffer.append("\n");
           buffer.append("        // Declare the parameters.\n");
           for (ModelParameter modelParameter : modelMethod.getParameterList()) {
-            buffer.append("        " + toString(modelParameter.getType(), true, false) + " param_" + modelParameter.getName() + ";\n");
+            buffer.append("        " + toString(modelParameter.getType()) + " param_" + modelParameter.getName() + ";\n");
           }
         }
 
@@ -156,7 +157,7 @@ public class JavaCodeGenerator extends CodeGenerator {
           buffer.append("        // Decode the parameter param_" + modelParameter.getName() + ".\n");
           if (modelParameter.isCallerObject()) {
             buffer.append("        param_" + modelParameter.getName() + " = (" +
-                    toString(modelParameter.getType(), true, false) + ") smallSession.getCallerObject();\n");
+                    toString(modelParameter.getType()) + ") smallSession.getCallerObject();\n");
           }
           else {
             buffer.append(getDecodingSourceCode("%s = %s",
@@ -181,7 +182,38 @@ public class JavaCodeGenerator extends CodeGenerator {
         List<String> parameterNameList = new ArrayList<String>();
         for (ModelParameter modelParameter : modelMethod.getParameterList())
           parameterNameList.add("param_" + modelParameter.getName());
-        buffer.append("        service." + modelMethod.getName() + "(" + getCommaSeparatedSequence(parameterNameList) + ");\n");
+        buffer.append("        " +
+                (modelMethod.getReturnType() == VoidType.instance ? "" : toString(modelMethod.getReturnType()) + " returnValue = ") +
+                "service." + modelMethod.getName() + "(" + getCommaSeparatedSequence(parameterNameList) + ");\n");
+        
+        // Encode and send the return value.
+        if (modelMethod.getReturnType() != VoidType.instance) {
+          buffer.append("\n");
+          buffer.append("        java.io.ByteArrayOutputStream byteArrayOutputStream = new java.io.ByteArrayOutputStream();\n");
+          buffer.append("        java.io.DataOutputStream outputStream = new java.io.DataOutputStream(byteArrayOutputStream);\n");
+          buffer.append("\n");
+          
+          // Encode the method's Id.
+          buffer.append("        // Encode the return method id.\n");
+          String writeMethodIdFormat;
+          if (modelData.getNumberOfMethodsOnOtherSide() <= 1) writeMethodIdFormat = "// No need.";
+          else if (modelData.getNumberOfMethodsOnOtherSide() <= 256) writeMethodIdFormat = "outputStream.writeByte(%s);";
+          else if (modelData.getNumberOfMethodsOnOtherSide() <= 65536) writeMethodIdFormat = "outputStream.writeShort(%s);";
+          else writeMethodIdFormat = "outputStream.writeInt(%s);";
+          buffer.append("        " + String.format(writeMethodIdFormat, modelMethod.getReturnMethodId()) + "\n");
+          buffer.append("\n");
+          
+          buffer.append("        // Encode the return value.\n");
+          buffer.append(getEncodingSourceCode("        ",
+                  "returnValue",
+                  "outputStream",
+                  modelMethod.getReturnType(),
+                  0));
+          buffer.append("\n");
+          
+          buffer.append("        // Send the return value back to the caller.\n");
+          buffer.append("        smallSession.sendMessage(byteArrayOutputStream);\n");
+        }
 
         buffer.append("\n");
         buffer.append("        break;\n");
@@ -218,10 +250,11 @@ public class JavaCodeGenerator extends CodeGenerator {
     for (ModelMethod modelMethod : modelClass.getMethodList()) {
       List<String> parameterTextList = new ArrayList<String>();
       for (ModelParameter modelParameter : modelMethod.getParameterList())
-        parameterTextList.add(toString(modelParameter.getType(), modelClass.isLocalSide(), false) +
+        parameterTextList.add(toString(modelParameter.getType()) +
                 " " + modelParameter.getName());
 
-      buffer.append("  public void " + modelMethod.getName() + "(" + getCommaSeparatedSequence(parameterTextList) + ");\n");
+      String returnTypeName = toString(modelClass.isLocalSide() ? modelMethod.getReturnType() : VoidType.instance);
+      buffer.append("  public " + returnTypeName + " " + modelMethod.getName() + "(" + getCommaSeparatedSequence(parameterTextList) + ");\n");
     }
 
     buffer.append("}\n");
@@ -232,9 +265,9 @@ public class JavaCodeGenerator extends CodeGenerator {
   protected void generateClassProxy(ModelClass modelClass) {
     // Choose the right way to encode the methodIDs with respect to their cardinal.
     String writeMethodIdFormat;
-    if (modelData.getNumberOfMethodsOnSameSide() <= 1) writeMethodIdFormat = "// No need.";
-    else if (modelData.getNumberOfMethodsOnSameSide() <= 256) writeMethodIdFormat = "outputStream.writeByte(%s);";
-    else if (modelData.getNumberOfMethodsOnSameSide() <= 65536) writeMethodIdFormat = "outputStream.writeShort(%s);";
+    if (modelData.getNumberOfMethodsOnOtherSide() <= 1) writeMethodIdFormat = "// No need.";
+    else if (modelData.getNumberOfMethodsOnOtherSide() <= 256) writeMethodIdFormat = "outputStream.writeByte(%s);";
+    else if (modelData.getNumberOfMethodsOnOtherSide() <= 65536) writeMethodIdFormat = "outputStream.writeShort(%s);";
     else writeMethodIdFormat = "outputStream.writeInt(%s);";
 
     // Start to generate the proxy.
@@ -257,8 +290,7 @@ public class JavaCodeGenerator extends CodeGenerator {
     for (ModelMethod modelMethod : modelClass.getMethodList()) {
       List<String> parameterTextList = new ArrayList<String>();
       for (ModelParameter modelParameter : modelMethod.getParameterList())
-        parameterTextList.add(toString(modelParameter.getType(), modelClass.isLocalSide(), false) +
-                " param_" + modelParameter.getName());
+        parameterTextList.add(toString(modelParameter.getType()) + " param_" + modelParameter.getName());
 
       buffer.append("\n");
       buffer.append("  @Override\n");
@@ -337,43 +369,31 @@ public class JavaCodeGenerator extends CodeGenerator {
             Locale.UK).format(new Date()) + " */";
   }
 
-  protected String toString(Type type, boolean isReceiverSide, boolean isGenericArgument) {
-    return toString(type, isReceiverSide, isGenericArgument, false);
-  }
-  
-  protected String toString(Type type, boolean isReceiverSide, boolean isGenericArgument, boolean noManagedReference) {
+  protected String toString(Type type) {
     switch (type.getTypeKind()) {
+      case Void:
+        return "void";
       case Primitive:
         return ((PrimitiveType) type).getPrimitiveClass().getName();
       case Array:
-        return toString(((ArrayType) type).getComponentType(), isReceiverSide, false, noManagedReference) + "[]";
+        return toString(((ArrayType) type).getComponentType()) + "[]";
       case Enum:
         return ((EnumType) type).getQualifiedClassName();
       case PrimitiveWrapper:
         return ((PrimitiveWrapperType) type).getWrapperClass().getName();
       case Model: {
         ModelClass modelClass = ((ModelType) type).getModelClass();
-
-        String result = getInterfaceName(modelClass).getQualifiedName();
-
-        // Add "? extends " if enclosed within a generic type.
-        if (isGenericArgument && !isReceiverSide)
-          result = "? extends " + result;
-
-        return result;
+        return getInterfaceName(modelClass).getQualifiedName();
       }
       case Declared: {
         StringBuffer buffer = new StringBuffer();
         DeclaredType declaredType = (DeclaredType) type;
 
-        // Add "? extends " if enclosed within a generic type.
-        if (isGenericArgument && !isReceiverSide) buffer.append("? extends ");
- 
         buffer.append(declaredType.getTypeName());
 
         List<String> argumentTypeTextList = new ArrayList<String>();
         for (Type argumentType : declaredType.getGenericArgumentTypeList())
-          argumentTypeTextList.add(toString(argumentType, isReceiverSide, true, noManagedReference));
+          argumentTypeTextList.add(toString(argumentType));
         if (!argumentTypeTextList.isEmpty())
           buffer.append("<" + getCommaSeparatedSequence(argumentTypeTextList) + ">");
 
@@ -468,7 +488,7 @@ public class JavaCodeGenerator extends CodeGenerator {
                 indentation,
                 outputStreamVarName,
                 valueName,
-                toString(declaredType.getGenericArgumentTypeList().get(0), false, false),
+                toString(declaredType.getGenericArgumentTypeList().get(0)),
                 recursionDepth,
                 writeValueBlock));
       }
@@ -496,8 +516,8 @@ public class JavaCodeGenerator extends CodeGenerator {
                 indentation,
                 outputStreamVarName,
                 valueName,
-                toString(declaredType.getGenericArgumentTypeList().get(0), false, true),
-                toString(declaredType.getGenericArgumentTypeList().get(1), false, true),
+                toString(declaredType.getGenericArgumentTypeList().get(0)),
+                toString(declaredType.getGenericArgumentTypeList().get(1)),
                 recursionDepth,
                 writeKeyBlock,
                 writeValueBlock));
@@ -620,7 +640,7 @@ public class JavaCodeGenerator extends CodeGenerator {
                 "%1$s  %6$s;\n" +
                 "%1$s}\n",
                 indentation,
-                toString(declaredType.getGenericArgumentTypeList().get(0), true, false),
+                toString(declaredType.getGenericArgumentTypeList().get(0)),
                 inputStreamVarName,
                 recursionDepth,
                 initValueBlock,
@@ -647,7 +667,7 @@ public class JavaCodeGenerator extends CodeGenerator {
                 "%1$s  %6$s;\n" +
                 "%1$s}\n",
                 indentation,
-                toString(declaredType.getGenericArgumentTypeList().get(0), true, false),
+                toString(declaredType.getGenericArgumentTypeList().get(0)),
                 inputStreamVarName,
                 recursionDepth,
                 initValueBlock,
@@ -685,8 +705,8 @@ public class JavaCodeGenerator extends CodeGenerator {
                 "%1$s  %8$s;\n" +
                 "%1$s}\n",
                 indentation,
-                toString(declaredType.getGenericArgumentTypeList().get(0), true, false),
-                toString(declaredType.getGenericArgumentTypeList().get(1), true, false),
+                toString(declaredType.getGenericArgumentTypeList().get(0)),
+                toString(declaredType.getGenericArgumentTypeList().get(1)),
                 inputStreamVarName,
                 recursionDepth,
                 initKeyBlock,

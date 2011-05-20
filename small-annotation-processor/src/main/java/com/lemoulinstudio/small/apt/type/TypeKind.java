@@ -6,6 +6,7 @@ package com.lemoulinstudio.small.apt.type;
  * @author Vincent Cantin
  */
 public enum TypeKind {
+  Void,
   Primitive,
   Array,
   Enum,
