@@ -5,7 +5,7 @@ import com.lemoulinstudio.small.apt.model.Caller;
 import com.lemoulinstudio.small.apt.model.Log;
 import com.lemoulinstudio.small.apt.model.Service;
 import com.lemoulinstudio.small.apt.model.NoLog;
-import com.lemoulinstudio.small.apt.model.TransmissionStep;
+import com.lemoulinstudio.small.apt.model.LogSide;
 import com.lemoulinstudio.small.apt.type.ArrayType;
 import com.lemoulinstudio.small.apt.type.DeclaredType;
 import com.lemoulinstudio.small.apt.type.EnumType;
@@ -136,25 +136,25 @@ public class ModelFactory {
     // @Log policies at class level.
     Log classElementLogAnnotation = methodElement.getEnclosingElement().getAnnotation(Log.class);
     if (classElementLogAnnotation != null) {
-      TransmissionStep transmissionStep = classElementLogAnnotation.value();
-      if (transmissionStep.hasInvocation()) modelMethod.logMethodInvocation = true;
-      if (transmissionStep.hasReception())  modelMethod.logMessageReception = true;
+      LogSide logSide = classElementLogAnnotation.value();
+      if (logSide.hasInvocation()) modelMethod.logMethodInvocation = true;
+      if (logSide.hasReception())  modelMethod.logMessageReception = true;
     }
 
     // @NoLog policies at method level.
     NoLog methodElementNoLogAnnotation = methodElement.getAnnotation(NoLog.class);
     if (methodElementNoLogAnnotation != null) {
-      TransmissionStep transmissionStep = methodElementNoLogAnnotation.value();
-      if (transmissionStep.hasInvocation()) modelMethod.logMethodInvocation = false;
-      if (transmissionStep.hasReception())  modelMethod.logMessageReception = false;
+      LogSide logSide = methodElementNoLogAnnotation.value();
+      if (logSide.hasInvocation()) modelMethod.logMethodInvocation = false;
+      if (logSide.hasReception())  modelMethod.logMessageReception = false;
     }
     else {
       // @Log policies at method level.
       Log methodElementLogAnnotation = methodElement.getAnnotation(Log.class);
       if (methodElementLogAnnotation != null) {
-        TransmissionStep transmissionStep = methodElementLogAnnotation.value();
-        if (transmissionStep.hasInvocation()) modelMethod.logMethodInvocation = true;
-        if (transmissionStep.hasReception())  modelMethod.logMessageReception = true;
+        LogSide logSide = methodElementLogAnnotation.value();
+        if (logSide.hasInvocation()) modelMethod.logMethodInvocation = true;
+        if (logSide.hasReception())  modelMethod.logMessageReception = true;
       }
     }
 

@@ -4,7 +4,7 @@ package com.lemoulinstudio.small.apt.model;
  *
  * @author Vincent Cantin
  */
-public enum TransmissionStep {
+public enum LogSide {
   Invocation,
   Reception,
   Both;
