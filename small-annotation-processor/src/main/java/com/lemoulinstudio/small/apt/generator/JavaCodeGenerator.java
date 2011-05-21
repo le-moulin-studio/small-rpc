@@ -16,6 +16,7 @@ import com.lemoulinstudio.small.Decoder;
 import com.lemoulinstudio.small.LocalService;
 import com.lemoulinstudio.small.Proxy;
 import com.lemoulinstudio.small.RemoteService;
+import com.lemoulinstudio.small.Response;
 import com.lemoulinstudio.small.SmallSessionImpl;
 import com.lemoulinstudio.small.apt.type.VoidType;
 import com.lemoulinstudio.small.util.Utils;
@@ -60,7 +61,7 @@ public class JavaCodeGenerator extends CodeGenerator {
     generateConfigFile(remoteSideClassList);
 
     // Generate the decoder.
-    generateRootDecoder(localSideClassList);
+    generateRootDecoder(localSideClassList, remoteSideClassList);
 
     // Generate the interfaces for local objects to implement.
     for (ModelClass modelClass : localSideClassList)
@@ -76,8 +77,8 @@ public class JavaCodeGenerator extends CodeGenerator {
 
   }
 
-  protected void generateConfigFile(List<ModelClass> modelClasseList) {
-    StringBuffer buffer = new StringBuffer();
+  protected void generateConfigFile(List<ModelClass> modelClassList) {
+    StringBuilder buffer = new StringBuilder();
     
     buffer.append("package " + config.getConfigurationClassName().getPackageName() + ";\n");
     buffer.append("\n");
@@ -94,7 +95,7 @@ public class JavaCodeGenerator extends CodeGenerator {
     buffer.append("  @Override\n");
     buffer.append("  public " + mapTypeName + " getRemoteServiceClassToProxyClass() {\n");
     buffer.append("    " + mapTypeName + " result = new " + hashmapTypeName + "();\n");
-    for (ModelClass modelClass : modelClasseList)
+    for (ModelClass modelClass : modelClassList)
       buffer.append("    result.put(" + getInterfaceName(modelClass).getQualifiedName() + ".class, " + getProxyName(modelClass).getQualifiedName() + ".class);\n");
     buffer.append("    return result;\n");
     buffer.append("  }\n");
@@ -111,8 +112,10 @@ public class JavaCodeGenerator extends CodeGenerator {
     writeFileContent(config.getConfigurationClassName().getQualifiedName(), buffer);
   }
 
-  protected void generateRootDecoder(List<ModelClass> modelClassList) {
-    StringBuffer buffer = new StringBuffer();
+  protected void generateRootDecoder(
+          List<ModelClass> localSideClassList,
+          List<ModelClass> remoteSideClassList) {
+    StringBuilder buffer = new StringBuilder();
 
     buffer.append("package " + config.getRootDecoderClassName().getPackageName() + ";\n");
     buffer.append("\n");
@@ -130,7 +133,7 @@ public class JavaCodeGenerator extends CodeGenerator {
     else buffer.append("inputStream.readInt();\n");
 
     buffer.append("    switch (methodId) {\n");
-    for (ModelClass modelClass : modelClassList)
+    for (ModelClass modelClass : localSideClassList) {
       for (ModelMethod modelMethod : modelClass.getMethodList()) {
         buffer.append("      // " + getInterfaceName(modelClass).getQualifiedName() + "." + modelMethod.getName() + "()\n");
         buffer.append("      case " + modelMethod.getMethodId() + ": {\n");
@@ -220,7 +223,56 @@ public class JavaCodeGenerator extends CodeGenerator {
         buffer.append("      }\n");
         buffer.append("\n");
       }
+    }
 
+    for (ModelClass modelClass : remoteSideClassList) {
+      for (ModelMethod modelMethod : modelClass.getMethodList()) {
+        if (modelMethod.getReturnType() != VoidType.instance) {
+          buffer.append("      // Response from " +
+                  getInterfaceName(modelClass).getQualifiedName() +
+                  "." + modelMethod.getName() + "()\n");
+          buffer.append("      case " + modelMethod.getReturnMethodId() + ": {\n");
+
+          // Declare the return value.
+          buffer.append("        // Declare return value.\n");
+          buffer.append("        " + toString(modelMethod.getReturnType()) + " returnValue;\n");
+          buffer.append("\n");
+
+          // Decode the return value.
+          buffer.append("        // Decode the return value.\n");
+          buffer.append(getDecodingSourceCode("%s = %s",
+                  "        ",
+                  "returnValue",
+                  "inputStream",
+                  modelMethod.getReturnType(),
+                  0));
+          buffer.append("\n");
+          
+          // Find the reponse container.
+          buffer.append("        // Find the reponse container.\n");
+          buffer.append("        " + Response.class.getName() +
+                  " response = smallSession.pullResponseFromQueue();\n");
+          buffer.append("\n");
+          
+          // Store the response value in the container.
+          buffer.append("        // Store the response value in the container.\n");
+          buffer.append("        response.setValue(returnValue);\n");
+
+          // Eventually log the message.
+//          if (modelMethod.shouldLogMessageReception()) {
+//            buffer.append("\n");
+//            buffer.append("        // Log the message reception.\n");
+//            buffer.append("        smallSession.logText(\"<- \"" + getArgumentLogText("service", modelMethod) + ");\n");
+//          }
+          
+          buffer.append("\n");
+          buffer.append("        break;\n");
+          buffer.append("      }\n");
+          buffer.append("\n");
+        }
+      }
+    }
+    
     buffer.append("      default:\n");
     buffer.append("    }\n");
     buffer.append("  }\n");
@@ -231,7 +283,7 @@ public class JavaCodeGenerator extends CodeGenerator {
   }
 
   protected void generateInterface(ModelClass modelClass) {
-    StringBuffer buffer = new StringBuffer();
+    StringBuilder buffer = new StringBuilder();
 
     buffer.append("package " + getInterfaceName(modelClass).getPackageName() + ";\n");
     buffer.append("\n");
@@ -243,9 +295,7 @@ public class JavaCodeGenerator extends CodeGenerator {
     superInterfaceList.add((modelClass.isLocalSide() ?
             LocalService.class : RemoteService.class).getName());
     
-    buffer.append(" extends " + getCommaSeparatedSequence(superInterfaceList));
-    
-    buffer.append(" {\n");
+    buffer.append(" extends " + getCommaSeparatedSequence(superInterfaceList) + " {\n");
 
     for (ModelMethod modelMethod : modelClass.getMethodList()) {
       List<String> parameterTextList = new ArrayList<String>();
@@ -253,7 +303,8 @@ public class JavaCodeGenerator extends CodeGenerator {
         parameterTextList.add(toString(modelParameter.getType()) +
                 " " + modelParameter.getName());
 
-      String returnTypeName = toString(modelClass.isLocalSide() ? modelMethod.getReturnType() : VoidType.instance);
+      String returnTypeName = toString(modelMethod.getReturnType());
+      
       buffer.append("  public " + returnTypeName + " " + modelMethod.getName() + "(" + getCommaSeparatedSequence(parameterTextList) + ");\n");
     }
 
@@ -271,7 +322,7 @@ public class JavaCodeGenerator extends CodeGenerator {
     else writeMethodIdFormat = "outputStream.writeInt(%s);";
 
     // Start to generate the proxy.
-    StringBuffer buffer = new StringBuffer();
+    StringBuilder buffer = new StringBuilder();
 
     buffer.append("package " + getProxyName(modelClass).getPackageName() + ";\n");
     buffer.append("\n");
@@ -292,9 +343,11 @@ public class JavaCodeGenerator extends CodeGenerator {
       for (ModelParameter modelParameter : modelMethod.getParameterList())
         parameterTextList.add(toString(modelParameter.getType()) + " param_" + modelParameter.getName());
 
+      String returnTypeName = toString(modelMethod.getReturnType());
+      
       buffer.append("\n");
       buffer.append("  @Override\n");
-      buffer.append("  public void " + modelMethod.getName() + "(" + getCommaSeparatedSequence(parameterTextList) + ") {\n");
+      buffer.append("  public " + returnTypeName + " " + modelMethod.getName() + "(" + getCommaSeparatedSequence(parameterTextList) + ") {\n");
       
 //      if (config.getPlatform() == Platform.RedDwarfServer)
 //        buffer.append("    " + com.lemoulinstudio.small.rds.SmallSessionImpl.class.getName() + " smallSession = smallSessionRef.get();\n");
@@ -333,9 +386,28 @@ public class JavaCodeGenerator extends CodeGenerator {
         buffer.append("\n");
       }
 
-      // Send the message.
-      buffer.append("    // Send the message.\n");
-      buffer.append("    smallSession.sendMessage(byteArrayStream);\n");
+      if (modelMethod.getReturnType() == VoidType.instance) {
+        // Send the message.
+        buffer.append("    // Send the message.\n");
+        buffer.append("    smallSession.sendMessage(byteArrayStream);\n");
+      }
+      else {
+        // Create the response container.
+        buffer.append("    // Create the response container.\n");
+        buffer.append("    " + Response.class.getName() + "<" + returnTypeName +
+                "> _response_ = new " + Response.class.getName() + "<" + returnTypeName + ">();\n");
+        buffer.append("    \n");
+
+        // Send the message.
+        buffer.append("    // Send the message.\n");
+        buffer.append("    smallSession.sendMessage(_response_, byteArrayStream);\n");
+        buffer.append("    \n");
+        
+        // And wait for the response.
+        buffer.append("    // Wait and return the response's value.\n");
+        buffer.append("    return _response_.waitForValue();\n");
+      }
+      
       buffer.append("  }\n");
     }
 
@@ -386,7 +458,7 @@ public class JavaCodeGenerator extends CodeGenerator {
         return getInterfaceName(modelClass).getQualifiedName();
       }
       case Declared: {
-        StringBuffer buffer = new StringBuffer();
+        StringBuilder buffer = new StringBuilder();
         DeclaredType declaredType = (DeclaredType) type;
 
         buffer.append(declaredType.getTypeName());
@@ -409,7 +481,7 @@ public class JavaCodeGenerator extends CodeGenerator {
           String outputStreamVarName,
           Type parameterType,
           int recursionDepth) {
-    StringBuffer buffer = new StringBuffer();
+    StringBuilder buffer = new StringBuilder();
 
     if (parameterType.getTypeKind() == TypeKind.Primitive) {
       PrimitiveType primitiveType = (PrimitiveType) parameterType;
@@ -540,7 +612,7 @@ public class JavaCodeGenerator extends CodeGenerator {
           String inputStreamVarName,
           Type parameterType,
           int recursionDepth) {
-    StringBuffer buffer = new StringBuffer();
+    StringBuilder buffer = new StringBuilder();
 
     if (parameterType.getTypeKind() == TypeKind.Primitive) {
       PrimitiveType primitiveType = (PrimitiveType) parameterType;
@@ -726,7 +798,7 @@ public class JavaCodeGenerator extends CodeGenerator {
   }
   
   private CharSequence getArgumentLogText(String targetVarName, ModelMethod modelMethod) {
-    StringBuffer buffer = new StringBuffer();
+    StringBuilder buffer = new StringBuilder();
     
     buffer.append(" + " + Utils.class.getName() + ".refToString(" + targetVarName +") + \"." + modelMethod.getName() + "(\"");
 

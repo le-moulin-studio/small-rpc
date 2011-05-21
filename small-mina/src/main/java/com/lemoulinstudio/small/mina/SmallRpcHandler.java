@@ -14,15 +14,23 @@ import org.apache.mina.core.session.IoSession;
  * 
  * @author Vincent Cantin
  */
-public class SmallRpcHandler extends IoHandlerAdapter {
+public final class SmallRpcHandler extends IoHandlerAdapter {
   
   private final AbstractConfiguration configuration;
+  private final SmallRpcSessionListener sessionListener;
   private final LocalService[] initialServices;
 
   private final AttributeKey SMALL_SESSION = new AttributeKey(getClass(), "smallSession");
 
   public SmallRpcHandler(AbstractConfiguration configuration, LocalService ... initialServices) {
+    this(configuration, new SmallRpcSessionListenerAdapter(), initialServices);
+  }
+
+  public SmallRpcHandler(AbstractConfiguration configuration,
+          SmallRpcSessionListener sessionListener,
+          LocalService ... initialServices) {
     this.configuration = configuration;
+    this.sessionListener = sessionListener;
     this.initialServices = initialServices;
   }
 
@@ -37,17 +45,38 @@ public class SmallRpcHandler extends IoHandlerAdapter {
       }
     });
     
-    //smallSession.setCallerObject(...);
-    
     for (LocalService service : initialServices)
       smallSession.bind(service, (Class<LocalService>) service.getClass().getInterfaces()[0]);
     
     session.setAttribute(SMALL_SESSION, smallSession);
+    
+    //smallSession.setCallerObject(...);
+    sessionListener.sessionCreated(smallSession);
+  }
+
+  @Override
+  public void sessionOpened(IoSession session) throws Exception {
+    final SmallSession smallSession = getSmallSession(session);
+    
+    new Thread(new Runnable() {
+      @Override
+      public void run() {
+        sessionListener.sessionOpened(smallSession);
+      }
+    }).start();
   }
 
   @Override
   public void sessionClosed(IoSession session) throws Exception {
+    final SmallSession smallSession = getSmallSession(session);
     session.removeAttribute(SMALL_SESSION);
+    
+    new Thread(new Runnable() {
+      @Override
+      public void run() {
+        sessionListener.sessionClosed(smallSession);
+      }
+    }).start();
   }
 
   @Override
@@ -56,7 +85,7 @@ public class SmallRpcHandler extends IoHandlerAdapter {
     session.close(false);
   }
   
-  protected final SmallSession getSmallSession(IoSession session) {
+  private SmallSession getSmallSession(IoSession session) {
     return (SmallSession) session.getAttribute(SMALL_SESSION);
   }
 

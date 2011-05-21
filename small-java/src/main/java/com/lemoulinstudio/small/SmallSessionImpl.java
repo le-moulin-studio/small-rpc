@@ -4,9 +4,11 @@ import com.lemoulinstudio.small.util.ByteBufferInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.nio.ByteBuffer;
-import java.util.Map;
-import java.util.logging.Logger;
 import java.util.HashMap;
+import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.logging.Logger;
 
 /**
  * An implementation of the {@link SmallSession} interface.
@@ -26,6 +28,8 @@ public class SmallSessionImpl implements SmallSession {
 
   private MessageSender messageSender;
   private Object callerObject;
+  
+  private Queue<Response> responseQueue = new ConcurrentLinkedQueue<Response>();
 
   private static final Logger logger = Logger.getLogger(SmallSessionImpl.class.getName());
 
@@ -145,6 +149,22 @@ public class SmallSessionImpl implements SmallSession {
   // TODO: this could be simplified.
   public void sendMessage(ByteArrayOutputStream byteArrayStream) {
     messageSender.sendMessage(ByteBuffer.wrap(byteArrayStream.toByteArray()));
+  }
+
+  /**
+   * This should be only called from a generated proxy.
+   */
+  // TODO: this could be simplified.
+  public void sendMessage(Response response, ByteArrayOutputStream byteArrayStream) {
+    responseQueue.add(response);
+    messageSender.sendMessage(ByteBuffer.wrap(byteArrayStream.toByteArray()));
+  }
+  
+  /**
+   * This should be only called from a generated decoder.
+   */
+  public Response pullResponseFromQueue() {
+    return responseQueue.remove();
   }
 
   /**
