@@ -3,7 +3,7 @@ package com.lemoulinstudio.small;
 import java.nio.ByteBuffer;
 
 /**
- * The class which represents a peer in a p2p communication in the Small system.
+ * This class represents a communication session between 2 entities.
  *
  * @author Vincent Cantin
  */
