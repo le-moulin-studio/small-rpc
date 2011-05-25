@@ -13,18 +13,18 @@ import org.apache.mina.core.session.IoSession;
  * 
  * @author Vincent Cantin
  */
-public final class SmallRpcHandler extends IoHandlerAdapter {
+public final class SmallIoHandler extends IoHandlerAdapter {
   
   private final AbstractConfiguration configuration;
-  private final SmallRpcSessionListener sessionListener;
+  private final SmallIoHandlerListener sessionListener;
 
   private final AttributeKey SMALL_SESSION = new AttributeKey(getClass(), "smallSession");
 
-  public SmallRpcHandler(AbstractConfiguration configuration) {
-    this(configuration, new SmallRpcSessionListenerAdapter());
+  public SmallIoHandler(AbstractConfiguration configuration) {
+    this(configuration, new SmallIoHandlerListenerAdapter());
   }
 
-  public SmallRpcHandler(AbstractConfiguration configuration, SmallRpcSessionListener sessionListener) {
+  public SmallIoHandler(AbstractConfiguration configuration, SmallIoHandlerListener sessionListener) {
     this.configuration = configuration;
     this.sessionListener = sessionListener;
   }

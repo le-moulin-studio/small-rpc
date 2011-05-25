@@ -10,7 +10,7 @@ import org.apache.mina.filter.codec.ProtocolEncoderOutput;
  * 
  * @author Vincent Cantin
  */
-public class SmallRpcEncoder implements ProtocolEncoder {
+class MessageEncoder implements ProtocolEncoder {
 
   @Override
   public void encode(IoSession session, Object message, ProtocolEncoderOutput out) throws Exception {

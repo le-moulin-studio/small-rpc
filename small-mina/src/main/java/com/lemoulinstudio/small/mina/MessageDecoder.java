@@ -11,7 +11,7 @@ import org.apache.mina.filter.codec.ProtocolDecoderOutput;
  * 
  * @author Vincent Cantin
  */
-public class SmallRpcDecoder implements ProtocolDecoder {
+class MessageDecoder implements ProtocolDecoder {
 
   private final AttributeKey CONTEXT = new AttributeKey(getClass(), "context");
 

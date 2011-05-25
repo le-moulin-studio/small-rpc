@@ -9,10 +9,10 @@ import org.apache.mina.filter.codec.ProtocolEncoder;
  * 
  * @author Vincent Cantin
  */
-public class SmallRpcCodecFactory implements ProtocolCodecFactory {
+public class MessageCodecFactory implements ProtocolCodecFactory {
   
-  private SmallRpcEncoder encoder = new SmallRpcEncoder();
-  private SmallRpcDecoder decoder = new SmallRpcDecoder();
+  private MessageEncoder encoder = new MessageEncoder();
+  private MessageDecoder decoder = new MessageDecoder();
 
   @Override
   public ProtocolEncoder getEncoder(IoSession session) throws Exception {
