@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.io.Writer;
 import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -544,7 +545,9 @@ public class JavaCodeGenerator extends CodeGenerator {
         buffer.append(indentation + outputStreamVarName + ".writeUTF(" + valueName + ");\n");
       }
 
-      else if (declaredType.getTypeClass() == List.class || declaredType.getTypeClass() == Set.class) {
+      else if (declaredType.getTypeClass() == List.class ||
+               declaredType.getTypeClass() == Set.class ||
+               declaredType.getTypeClass() == Collection.class) {
         CharSequence writeValueBlock = getEncodingSourceCode(
                 indentation + "  ",
                 "val" + recursionDepth,
@@ -734,6 +737,33 @@ public class JavaCodeGenerator extends CodeGenerator {
                 "%1$s{\n" +
                 "%1$s  int length%4$d = %3$s.readInt();\n" +
                 "%1$s  java.util.Set<%2$s> tmp%4$d = new java.util.HashSet<%2$s>(length%4$d);\n" +
+                "%1$s  for (int i%4$d = 0; i%4$d < length%4$d; i%4$d++)\n" +
+                "%5$s" +
+                "%1$s  %6$s;\n" +
+                "%1$s}\n",
+                indentation,
+                toString(declaredType.getGenericArgumentTypeList().get(0)),
+                inputStreamVarName,
+                recursionDepth,
+                initValueBlock,
+                affectation));
+      }
+
+      else if (declaredType.getTypeClass() == Collection.class) {
+        CharSequence initValueBlock = getDecodingSourceCode("%s.add(%s)",
+                indentation + "    ",
+                "tmp" + recursionDepth,
+                inputStreamVarName,
+                declaredType.getGenericArgumentTypeList().get(0),
+                recursionDepth + 1);
+
+        String affectation = String.format(affectationFormat,
+                targetVariableName, "tmp" + recursionDepth);
+
+        buffer.append(String.format(
+                "%1$s{\n" +
+                "%1$s  int length%4$d = %3$s.readInt();\n" +
+                "%1$s  java.util.Collection<%2$s> tmp%4$d = new java.util.ArrayList<%2$s>(length%4$d);\n" +
                 "%1$s  for (int i%4$d = 0; i%4$d < length%4$d; i%4$d++)\n" +
                 "%5$s" +
                 "%1$s  %6$s;\n" +
