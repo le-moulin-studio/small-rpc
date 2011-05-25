@@ -92,5 +92,5 @@ public interface SmallSession {
    * @param proxy The proxy to be released.
    */
   public <T extends RemoteService> void releaseProxy(T proxy);
-
+  
 }

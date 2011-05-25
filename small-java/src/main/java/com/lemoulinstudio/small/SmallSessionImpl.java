@@ -16,7 +16,18 @@ import java.util.logging.Logger;
  * @author Vincent Cantin
  */
 public class SmallSessionImpl implements SmallSession {
+  
+  private static ThreadLocal<SmallSession> currentSessionThreadLocal =
+          new ThreadLocal<SmallSession>();
 
+  public static SmallSession getCurrentSession() {
+    return currentSessionThreadLocal.get();
+  }
+  
+  private static void setCurrentSession(SmallSession smallSession) {
+    currentSessionThreadLocal.set(smallSession);
+  }
+  
   private Map<Class<? extends LocalService>, LocalService> interfaceToService;
   private Map<LocalService, Class<? extends LocalService>> serviceToInterface;
   
@@ -54,10 +65,17 @@ public class SmallSessionImpl implements SmallSession {
    */
   @Override
   public void decodeAndExecute(ByteBuffer binaryMessage) throws Exception {
-    DataInputStream inputStream = new DataInputStream(new ByteBufferInputStream(binaryMessage));
+    setCurrentSession(this);
+    
+    try {
+      DataInputStream inputStream = new DataInputStream(new ByteBufferInputStream(binaryMessage));
 
-    // Decode the message and invoke the method.
-    rootDecoder.decodeAndInvoke(this, inputStream);
+      // Decode the message and invoke the method.
+      rootDecoder.decodeAndInvoke(this, inputStream);
+    }
+    finally {
+      setCurrentSession(null);
+    }
   }
 
   /**

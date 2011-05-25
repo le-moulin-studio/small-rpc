@@ -16,7 +16,7 @@ import org.apache.mina.core.session.IoSession;
 public final class SmallIoHandler extends IoHandlerAdapter {
   
   private final AbstractConfiguration configuration;
-  private final SmallIoHandlerListener sessionListener;
+  private final SmallIoHandlerListener handlerListener;
 
   private final AttributeKey SMALL_SESSION = new AttributeKey(getClass(), "smallSession");
 
@@ -24,9 +24,9 @@ public final class SmallIoHandler extends IoHandlerAdapter {
     this(configuration, new SmallIoHandlerListenerAdapter());
   }
 
-  public SmallIoHandler(AbstractConfiguration configuration, SmallIoHandlerListener sessionListener) {
+  public SmallIoHandler(AbstractConfiguration configuration, SmallIoHandlerListener handlerListener) {
     this.configuration = configuration;
-    this.sessionListener = sessionListener;
+    this.handlerListener = handlerListener;
   }
 
   @Override
@@ -43,7 +43,7 @@ public final class SmallIoHandler extends IoHandlerAdapter {
     session.setAttribute(SMALL_SESSION, smallSession);
     
     //smallSession.setCallerObject(...);
-    sessionListener.sessionCreated(smallSession);
+    handlerListener.sessionCreated(smallSession);
   }
 
   @Override
@@ -53,14 +53,14 @@ public final class SmallIoHandler extends IoHandlerAdapter {
     new Thread(new Runnable() {
       @Override
       public void run() {
-        sessionListener.sessionOpened(smallSession);
+        handlerListener.sessionOpened(smallSession);
       }
     }).start();
   }
 
   @Override
   public void sessionClosed(IoSession session) throws Exception {
-    sessionListener.sessionClosed(getSmallSession(session));
+    handlerListener.sessionClosed(getSmallSession(session));
     session.removeAttribute(SMALL_SESSION);
   }
 
