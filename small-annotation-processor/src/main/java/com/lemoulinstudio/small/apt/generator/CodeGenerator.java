@@ -4,6 +4,7 @@ import com.lemoulinstudio.small.apt.APConfig;
 import com.lemoulinstudio.small.apt.oom.ClassName;
 import com.lemoulinstudio.small.apt.oom.ModelClass;
 import com.lemoulinstudio.small.apt.oom.ModelData;
+import com.lemoulinstudio.small.apt.oom.VoClass;
 import java.util.List;
 
 /**
@@ -46,6 +47,15 @@ public abstract class CodeGenerator {
             "decoder." + modelClass.getSimpleName() + "Decoder");
   }
 
+  protected ClassName getValueObjectName(VoClass voClass) {
+    if (voClass.getQualifiedName().startsWith(config.getInputVoBasePackage()))
+      return new ClassName(config.getOutputBasePackage() + "." +
+              removeFromBeginning(voClass.getPackageName(), config.getInputVoBasePackage()) +
+              "vo." + voClass.getSimpleName());
+    else
+      return new ClassName(voClass.getQualifiedName());
+  }
+
   protected String removeFromBeginning(String name, String toBeRemoved) {
     if (name.startsWith(toBeRemoved))
       return name.substring(toBeRemoved.length());
@@ -53,9 +63,13 @@ public abstract class CodeGenerator {
   }
 
   protected CharSequence getCommaSeparatedSequence(List<? extends CharSequence> list) {
+    return getCommaSeparatedSequence(list, ", ");
+  }
+
+  protected CharSequence getCommaSeparatedSequence(List<? extends CharSequence> list, String commaString) {
     StringBuffer buffer = new StringBuffer();
     for (int i = 0; i < list.size(); i++) {
-      if (i > 0) buffer.append(", ");
+      if (i > 0) buffer.append(commaString);
       buffer.append(list.get(i));
     }
     return buffer;

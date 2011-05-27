@@ -280,8 +280,6 @@ public class ModelFactory {
     if (classNameToVoClass.containsKey(classElement.toString()))
       return classNameToVoClass.get(classElement.toString());
     
-    System.out.println("createVoClass(" + classElement + ");");
-    
     VoClass voClass = new VoClass();
     classNameToVoClass.put(classElement.toString(), voClass);
     
@@ -290,11 +288,13 @@ public class ModelFactory {
     // Create the fields.
     for (Element enclosedElement : classElement.getEnclosedElements()) {
       if (enclosedElement.getKind() == ElementKind.FIELD) {
-        System.out.println("enclosedElement = " + enclosedElement);
         VariableElement fieldElement = (VariableElement) enclosedElement;
         voClass.fieldList.add(createModelField(voClass, fieldElement));
       }
     }
+    
+    // Short the fields according to their name.
+    Collections.sort(voClass.fieldList, new ModelFieldComparator());
     
     return voClass;
   }
@@ -318,6 +318,13 @@ public class ModelFactory {
     @Override
     public int compare(ModelClass o1, ModelClass o2) {
       return o1.getQualifiedName().compareTo(o2.getQualifiedName());
+    }
+  }
+
+  private static class ModelFieldComparator implements Comparator<ModelField> {
+    @Override
+    public int compare(ModelField o1, ModelField o2) {
+      return o1.name.compareTo(o2.name);
     }
   }
 

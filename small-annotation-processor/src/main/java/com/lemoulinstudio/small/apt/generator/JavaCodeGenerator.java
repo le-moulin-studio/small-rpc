@@ -18,9 +18,13 @@ import com.lemoulinstudio.small.Proxy;
 import com.lemoulinstudio.small.RemoteService;
 import com.lemoulinstudio.small.Response;
 import com.lemoulinstudio.small.SmallSessionImpl;
+import com.lemoulinstudio.small.apt.oom.ClassName;
+import com.lemoulinstudio.small.apt.oom.ModelField;
 import com.lemoulinstudio.small.apt.oom.VoClass;
 import com.lemoulinstudio.small.apt.type.VoidType;
 import com.lemoulinstudio.small.util.Utils;
+import java.io.DataInput;
+import java.io.DataOutput;
 import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
@@ -76,6 +80,10 @@ public class JavaCodeGenerator extends CodeGenerator {
     // Generate the proxies for remote objects which are not embedded inside the root proxy.
     for (ModelClass modelClass : remoteSideClassList)
       generateClassProxy(modelClass);
+    
+    // Generate the value objects.
+    for (VoClass voClass : modelData.getClassNameToVoClass().values())
+      generateValueObject(voClass);
 
   }
 
@@ -418,6 +426,71 @@ public class JavaCodeGenerator extends CodeGenerator {
     writeFileContent(getProxyName(modelClass).getQualifiedName(), buffer);
   }
 
+  protected void generateValueObject(VoClass voClass) {
+    StringBuilder buffer = new StringBuilder();
+    
+    ClassName objectValueName = getValueObjectName(voClass);
+    List<ModelField> fieldList = voClass.getFieldList();
+
+    buffer.append("package " + objectValueName.getPackageName() + ";\n");
+    buffer.append("\n");
+    buffer.append(getGeneratedTag() + "\n");
+    buffer.append("public class " + objectValueName.getSimpleName() + " {\n");
+    
+    // The fields.
+    buffer.append("\n");
+    for (ModelField field : fieldList) {
+      buffer.append("  public " + field.getType() + " " + field.getName() + ";\n");
+    }
+
+    // The default empty constructor.
+    buffer.append("\n");
+    buffer.append("  public " + objectValueName.getSimpleName() + "() {\n");
+    buffer.append("  }\n");
+    
+    // The default constructor.
+    buffer.append("\n");
+    buffer.append("  public " + objectValueName.getSimpleName() + "(");
+    List<String> fieldDeclarationList = new ArrayList<String>();
+    for (ModelField field : fieldList)
+      fieldDeclarationList.add(field.getType() + " " + field.getName());
+    buffer.append(getCommaSeparatedSequence(fieldDeclarationList) + ") {\n");
+    for (ModelField field : fieldList)
+      buffer.append("    this." + field.getName() + " = " + field.getName() + ";\n");
+    buffer.append("  }\n");
+    
+    // The DataInput constructor.
+    buffer.append("\n");
+    buffer.append("  public " + objectValueName.getSimpleName() + "(" + DataInput.class.getName() + " in) throws " + IOException.class.getName() + "{\n");
+    for (ModelField field : fieldList)
+      buffer.append(getDecodingSourceCode("%s = %s", "    ", "this." + field.getName(), "in", field.getType(), 0));
+    buffer.append("  }\n");
+    
+    // The write() function.
+    buffer.append("\n");
+    buffer.append("  public void write(" + DataOutput.class.getName() + " out) throws " + IOException.class.getName() + "{\n");
+    for (ModelField field : fieldList)
+      buffer.append(getEncodingSourceCode("    ", "this." + field.getName(), "out", field.getType(), 0));
+    buffer.append("  }\n");
+    
+    // The toString() function.
+    buffer.append("\n");
+    buffer.append("  @Override\n");
+    buffer.append("  public String toString() {\n");
+    buffer.append("    return \"[\" + ");
+    List<String> fieldLogList = new ArrayList<String>();
+    for (ModelField field : fieldList)
+      fieldLogList.add(field.getName() + " + ");
+    buffer.append(getCommaSeparatedSequence(fieldLogList, "\", \" + "));
+    buffer.append("\"]\";\n");
+    buffer.append("  }\n");
+    
+    buffer.append("\n");
+    buffer.append("}\n");
+    
+    writeFileContent(objectValueName.getQualifiedName(), buffer);
+  }
+
   protected void writeFileContent(String fileName, CharSequence content) {
     try {
       JavaFileObject f = config.getProcessingEnv().getFiler().createSourceFile(fileName);
@@ -462,8 +535,13 @@ public class JavaCodeGenerator extends CodeGenerator {
       case Declared: {
         StringBuilder buffer = new StringBuilder();
         DeclaredType declaredType = (DeclaredType) type;
-
-        buffer.append(declaredType.getTypeName());
+        String declaredTypeName = declaredType.getTypeName();
+        
+        // We do a replacement for value objects.
+        if (modelData.getClassNameToVoClass().containsKey(declaredTypeName))
+          declaredTypeName = getValueObjectName(modelData.getClassNameToVoClass().get(declaredTypeName)).getQualifiedName();
+          
+        buffer.append(declaredTypeName);
 
         List<String> argumentTypeTextList = new ArrayList<String>();
         for (Type argumentType : declaredType.getGenericArgumentTypeList())
@@ -599,6 +677,7 @@ public class JavaCodeGenerator extends CodeGenerator {
                 writeValueBlock));
       }
 
+      // Value objects.
       else if (modelData.getClassNameToVoClass().containsKey(parameterType.toString())) {
         buffer.append(indentation + String.format("%2$s.write(%1$s);\n",
                 outputStreamVarName, valueName));
@@ -822,9 +901,11 @@ public class JavaCodeGenerator extends CodeGenerator {
                 affectation));
       }
 
+      // Value objects.
       else if (modelData.getClassNameToVoClass().containsKey(parameterType.toString())) {
+        VoClass voClass = modelData.getClassNameToVoClass().get(parameterType.toString());
         buffer.append(indentation + String.format(affectationFormat, targetVariableName,
-                "new " + parameterType.toString() + "(" + inputStreamVarName + ")") + ";\n");
+                "new " + getValueObjectName(voClass).getQualifiedName() + "(" + inputStreamVarName + ")") + ";\n");
       }
 
       else {
@@ -851,9 +932,6 @@ public class JavaCodeGenerator extends CodeGenerator {
 
       if (modelParameter.getType().toString().equals(String.class.getName())) {
         buffer.append(" + \"\\\"\" + " + parameterName + " + \"\\\"\"");
-      }
-      else if (modelParameter.getType().getTypeKind() == TypeKind.Declared) {
-        buffer.append(" + " + Utils.class.getName() + ".refToString(" + parameterName + ")");
       }
       else {
         buffer.append(" + " + parameterName);

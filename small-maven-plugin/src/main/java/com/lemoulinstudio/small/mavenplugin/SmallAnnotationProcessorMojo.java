@@ -80,6 +80,13 @@ public class SmallAnnotationProcessorMojo extends AbstractMojo {
   private String inputRemoteBasePackage;
 
   /**
+   * The base package for value objects in the model.
+   * @parameter
+   * @required
+   */
+  private String inputVoBasePackage;
+
+  /**
    * The base package in the generated sources.
    * @parameter
    * @required
@@ -150,6 +157,7 @@ public class SmallAnnotationProcessorMojo extends AbstractMojo {
               "-A" + APConfig.platformOption + "=" + platform,
               "-A" + APConfig.inputLocalBasePackageOption + "=" + inputLocalBasePackage,
               "-A" + APConfig.inputRemoteBasePackageOption + "=" + inputRemoteBasePackage,
+              "-A" + APConfig.inputVoBasePackageOption + "=" + inputVoBasePackage,
               "-A" + APConfig.outputBasePackageOption + "=" + outputBasePackage));
 
       if (configurationClass != null)

@@ -8,7 +8,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.logging.Logger;
 
 /**
  * An implementation of the {@link SmallSession} interface.
@@ -41,8 +40,6 @@ public class SmallSessionImpl implements SmallSession {
   private Object callerObject;
   
   private Queue<Response> responseQueue = new ConcurrentLinkedQueue<Response>();
-
-  private static final Logger logger = Logger.getLogger(SmallSessionImpl.class.getName());
 
   /**
    * Creates a Small session.
@@ -191,7 +188,7 @@ public class SmallSessionImpl implements SmallSession {
    * @param text The text to be logged.
    */
   public void logText(String text) {
-    logger.info(text);
+    System.out.println(text);
   }
 
 }

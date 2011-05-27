@@ -17,6 +17,7 @@ public class APConfig {
   public static final String platformOption = "platform";
   public static final String inputLocalBasePackageOption = "inputLocalBasePackage";
   public static final String inputRemoteBasePackageOption = "inputRemoteBasePackage";
+  public static final String inputVoBasePackageOption = "inputVoBasePackage";
   public static final String outputBasePackageOption = "outputBasePackage";
   public static final String configurationClassOption = "configurationClass";
   public static final String rootDecoderClassOption = "rootDecoderClass";
@@ -33,6 +34,7 @@ public class APConfig {
             platformOption,
             inputLocalBasePackageOption,
             inputRemoteBasePackageOption,
+            inputVoBasePackageOption,
             outputBasePackageOption,
             configurationClassOption,
             rootDecoderClassOption,
@@ -45,6 +47,7 @@ public class APConfig {
   private Platform platform;
   private String inputLocalBasePackage;
   private String inputRemoteBasePackage;
+  private String inputVoBasePackage;
   private String outputBasePackage;
   private ClassName configurationClassName;
   private ClassName rootDecoderClassName;
@@ -63,6 +66,7 @@ public class APConfig {
     platform = readPlatformValue();
     inputLocalBasePackage = readOptionValue(inputLocalBasePackageOption, "");
     inputRemoteBasePackage = readOptionValue(inputRemoteBasePackageOption, "");
+    inputVoBasePackage = readOptionValue(inputVoBasePackageOption, "");
     outputBasePackage = readOptionValue(outputBasePackageOption, "small.generated");
 
     configurationClassName = new ClassName(readOptionValue(configurationClassOption, outputBasePackage + ".Configuration"));
@@ -84,6 +88,10 @@ public class APConfig {
 
   public String getInputRemoteBasePackage() {
     return inputRemoteBasePackage;
+  }
+
+  public String getInputVoBasePackage() {
+    return inputVoBasePackage;
   }
 
   public String getOutputBasePackage() {
