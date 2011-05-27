@@ -18,6 +18,7 @@ import com.lemoulinstudio.small.Proxy;
 import com.lemoulinstudio.small.RemoteService;
 import com.lemoulinstudio.small.Response;
 import com.lemoulinstudio.small.SmallSessionImpl;
+import com.lemoulinstudio.small.apt.oom.VoClass;
 import com.lemoulinstudio.small.apt.type.VoidType;
 import com.lemoulinstudio.small.util.Utils;
 import java.io.File;
@@ -598,6 +599,11 @@ public class JavaCodeGenerator extends CodeGenerator {
                 writeValueBlock));
       }
 
+      else if (modelData.getClassNameToVoClass().containsKey(parameterType.toString())) {
+        buffer.append(indentation + String.format("%2$s.write(%1$s);\n",
+                outputStreamVarName, valueName));
+      }
+
       else {
         config.getProcessingEnv().getMessager().printMessage(Diagnostic.Kind.ERROR,
                 "Unsupported type: " + parameterType + "\n");
@@ -814,6 +820,11 @@ public class JavaCodeGenerator extends CodeGenerator {
                 initKeyBlock,
                 initValueBlock,
                 affectation));
+      }
+
+      else if (modelData.getClassNameToVoClass().containsKey(parameterType.toString())) {
+        buffer.append(indentation + String.format(affectationFormat, targetVariableName,
+                "new " + parameterType.toString() + "(" + inputStreamVarName + ")") + ";\n");
       }
 
       else {

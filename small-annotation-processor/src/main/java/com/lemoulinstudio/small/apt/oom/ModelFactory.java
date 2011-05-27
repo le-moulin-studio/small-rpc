@@ -15,11 +15,14 @@ import com.lemoulinstudio.small.apt.type.PrimitiveWrapperType;
 import com.lemoulinstudio.small.apt.type.Type;
 import com.lemoulinstudio.small.apt.type.VoidType;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -41,6 +44,7 @@ public class ModelFactory {
 
   private Map<TypeKind, Class> primitiveTypeKindToPrimitiveClass;
   private Map<TypeElement, ModelClass> modelClassElementToModelClass;
+  private Map<String, VoClass> classNameToVoClass;
 
   public ModelFactory(APConfig config) {
     this.config = config;
@@ -58,6 +62,8 @@ public class ModelFactory {
     primitiveTypeKindToPrimitiveClass.put(TypeKind.DOUBLE,  double.class);
 
     modelClassElementToModelClass = new HashMap<TypeElement, ModelClass>();
+    
+    classNameToVoClass = new HashMap<String, VoClass>();
     
     setupModelData();
   }
@@ -94,6 +100,12 @@ public class ModelFactory {
       else
         modelData.otherSideModelClassOrderedList.add(modelClass);
     }
+    
+    // Store the voClass instances in the modelData.
+//    for (VoClass voClass : classNameToVoClass.values()) {
+//      modelData.classNameToVoClass.put(voClass.type.getTypeName(), voClass);
+//    }
+    modelData.classNameToVoClass = classNameToVoClass;
   }
 
   private void setupModelClass(ModelClass modelClass, TypeElement classElement) {
@@ -102,7 +114,7 @@ public class ModelFactory {
 
     // Methods.
     for (Element enclosedElement : classElement.getEnclosedElements()) {
-      assert enclosedElement.getKind() == ElementKind.METHOD : classElement.getQualifiedName().toString() + " should only contains methods.";
+      assert enclosedElement.getKind() == ElementKind.METHOD : classElement.getQualifiedName().toString() + " should only contain methods.";
       ExecutableElement methodElement = (ExecutableElement) enclosedElement;
 
       modelClass.methodList.add(createModelMethod(modelClass, methodElement));
@@ -184,10 +196,12 @@ public class ModelFactory {
     modelParameter.name = parameterElement.getSimpleName().toString();
     
     modelParameter.isCallerObject = hasCallerType(parameterElement.asType());
-    if (modelParameter.isCallerObject)
+    if (modelParameter.isCallerObject) {
+      // Replace the type by the one specified in the config.
       modelParameter.type = new DeclaredType(
               config.getCallerObjectClassName().getQualifiedName(),
               null, Collections.<Type>emptyList(), Collections.<Type>emptyList());
+    }
     
     return modelParameter;
   }
@@ -237,7 +251,8 @@ public class ModelFactory {
       return new ModelType(modelClassElementToModelClass.get(typeElement));
     }
 
-    // It is a class Foo<Bar0, Bar1, ...>
+    // It is a general class of the form Foo<Bar0, Bar1, ...>,
+    // we consider it as a value object.
     {
       String typeName = typeElement.getQualifiedName().toString();
       Type superType = createType(typeElement.getSuperclass());
@@ -250,8 +265,46 @@ public class ModelFactory {
       for (TypeMirror typeArgument : typeArgumentList)
         genericArgumentTypeList.add(createType(typeArgument));
 
-      return new DeclaredType(typeName, superType, implementedTypeList, genericArgumentTypeList);
+      DeclaredType declaredType = new DeclaredType(typeName, superType, implementedTypeList, genericArgumentTypeList);
+      
+      final List<Class> speciallyHandledClasses = Arrays.<Class>asList(Object.class, String.class, Collection.class, List.class, Set.class, Map.class);
+      if (!speciallyHandledClasses.contains(declaredType.getTypeClass())) {
+        getVoClass(typeElement).type = declaredType;
+      }
+      
+      return declaredType;
     }
+  }
+
+  private VoClass getVoClass(TypeElement classElement) {
+    if (classNameToVoClass.containsKey(classElement.toString()))
+      return classNameToVoClass.get(classElement.toString());
+    
+    System.out.println("createVoClass(" + classElement + ");");
+    
+    VoClass voClass = new VoClass();
+    classNameToVoClass.put(classElement.toString(), voClass);
+    
+    //voClass.type = null;
+    
+    // Create the fields.
+    for (Element enclosedElement : classElement.getEnclosedElements()) {
+      if (enclosedElement.getKind() == ElementKind.FIELD) {
+        System.out.println("enclosedElement = " + enclosedElement);
+        VariableElement fieldElement = (VariableElement) enclosedElement;
+        voClass.fieldList.add(createModelField(voClass, fieldElement));
+      }
+    }
+    
+    return voClass;
+  }
+
+  private ModelField createModelField(VoClass voClass, VariableElement fieldElement) {
+    ModelField field = new ModelField();
+    field.parentVoClass = voClass;
+    field.type = createType(fieldElement.asType());
+    field.name = fieldElement.getSimpleName().toString();
+    return field;
   }
 
   private boolean hasCallerType(TypeMirror parameterType) {
