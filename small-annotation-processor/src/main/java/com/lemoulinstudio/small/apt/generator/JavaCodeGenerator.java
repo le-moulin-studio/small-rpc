@@ -609,12 +609,14 @@ public class JavaCodeGenerator extends CodeGenerator {
       
       int nbEnumItems = enumType.getNbEnumItems();
       String enumWriteCommand =
-              (nbEnumItems <= 256 ? ".writeByte" :
-                (nbEnumItems <= 65536 ? ".writeShort" :
-                  ".writeInt")) +
-                  "(" + valueName + ".ordinal())";
+              (nbEnumItems + 1 <= 256 ? ".writeByte" :
+                (nbEnumItems + 1 <= 65536 ? ".writeShort" :
+                  ".writeInt"));
 
-      buffer.append(indentation + outputStreamVarName + enumWriteCommand + ";\n");
+      buffer.append(indentation + "if (" + valueName + " == null) " +
+              outputStreamVarName + enumWriteCommand + "(" + nbEnumItems + ");\n");
+      buffer.append(indentation + "else " + outputStreamVarName +
+              enumWriteCommand + "(" + valueName + ".ordinal());\n");
     }
 
     else if (parameterType.getTypeKind() == TypeKind.Declared) {
@@ -754,12 +756,22 @@ public class JavaCodeGenerator extends CodeGenerator {
       EnumType enumType = (EnumType) parameterType;
       int nbEnumItems = enumType.getNbEnumItems();
         String enumOrdinalAsInt = inputStreamVarName +
-                (nbEnumItems <= 256 ? ".readByte() & 0xff" :
-                  (nbEnumItems <= 65536 ? ".readShort() & 0xffff" :
+                (nbEnumItems + 1 <= 256 ? ".readByte() & 0xff" :
+                  (nbEnumItems + 1 <= 65536 ? ".readShort() & 0xffff" :
                     ".readInt()"));
-
-        buffer.append(indentation + String.format(affectationFormat, targetVariableName,
-                enumType.getQualifiedClassName() + ".values()[" + enumOrdinalAsInt + "]") + ";\n");
+        
+        buffer.append(String.format(
+              "%1$s{\n" +
+              "%1$s  int tmp%2$d = %3$s;\n" +
+              "%1$s  %4$s\n" +
+              "%1$s}\n",
+              indentation,
+              recursionDepth,
+              enumOrdinalAsInt,
+              String.format(affectationFormat, targetVariableName,
+                "(tmp" + recursionDepth + " == " + nbEnumItems + " ? null : " +
+                enumType.getQualifiedClassName() + ".values()[tmp" + recursionDepth +
+                "])") + ";") + "\n");
     }
 
 //    else if (parameterType.getTypeKind() == TypeKind.Model) {
