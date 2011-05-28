@@ -17,14 +17,14 @@ import com.lemoulinstudio.small.LocalService;
 import com.lemoulinstudio.small.Proxy;
 import com.lemoulinstudio.small.RemoteService;
 import com.lemoulinstudio.small.Response;
+import com.lemoulinstudio.small.SmallDataInputStream;
+import com.lemoulinstudio.small.SmallDataOutputStream;
 import com.lemoulinstudio.small.SmallSessionImpl;
 import com.lemoulinstudio.small.apt.oom.ClassName;
 import com.lemoulinstudio.small.apt.oom.ModelField;
 import com.lemoulinstudio.small.apt.oom.VoClass;
 import com.lemoulinstudio.small.apt.type.VoidType;
 import com.lemoulinstudio.small.util.Utils;
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
@@ -134,7 +134,8 @@ public class JavaCodeGenerator extends CodeGenerator {
 
     buffer.append("\n");
     buffer.append("  @Override\n");
-    buffer.append("  public void decodeAndInvoke(" + smallSessionClass.getName() + " smallSession, java.io.DataInputStream inputStream) throws java.io.IOException {\n");
+    buffer.append("  public void decodeAndInvoke(" + smallSessionClass.getName() +
+            " smallSession, " + SmallDataInputStream.class.getName() + " inputStream) throws java.io.IOException {\n");
 
     buffer.append("    int methodId = ");
     if (modelData.getNumberOfMethodsOnSameSide() <= 1) buffer.append("0;\n");
@@ -203,7 +204,9 @@ public class JavaCodeGenerator extends CodeGenerator {
         if (modelMethod.getReturnType() != VoidType.instance) {
           buffer.append("\n");
           buffer.append("        java.io.ByteArrayOutputStream byteArrayOutputStream = new java.io.ByteArrayOutputStream();\n");
-          buffer.append("        java.io.DataOutputStream outputStream = new java.io.DataOutputStream(byteArrayOutputStream);\n");
+          buffer.append("        " + SmallDataOutputStream.class.getName() +
+                  " outputStream = new " + SmallDataOutputStream.class.getName() +
+                  "(byteArrayOutputStream);\n");
           buffer.append("\n");
           
           // Encode the method's Id.
@@ -359,10 +362,10 @@ public class JavaCodeGenerator extends CodeGenerator {
       buffer.append("  @Override\n");
       buffer.append("  public " + returnTypeName + " " + modelMethod.getName() + "(" + getCommaSeparatedSequence(parameterTextList) + ") {\n");
       
-//      if (config.getPlatform() == Platform.RedDwarfServer)
-//        buffer.append("    " + com.lemoulinstudio.small.rds.SmallSessionImpl.class.getName() + " smallSession = smallSessionRef.get();\n");
       buffer.append("    java.io.ByteArrayOutputStream byteArrayStream = new java.io.ByteArrayOutputStream();\n");
-      buffer.append("    java.io.DataOutputStream outputStream = new java.io.DataOutputStream(byteArrayStream);\n");
+      buffer.append("    " + SmallDataOutputStream.class.getName() +
+              " outputStream = new " + SmallDataOutputStream.class.getName() +
+              "(byteArrayStream);\n");
 
       // Open the "try".
       buffer.append("\n");
@@ -461,16 +464,21 @@ public class JavaCodeGenerator extends CodeGenerator {
     
     // The DataInput constructor.
     buffer.append("\n");
-    buffer.append("  public " + objectValueName.getSimpleName() + "(" + DataInput.class.getName() + " in) throws " + IOException.class.getName() + "{\n");
+    buffer.append("  public " + objectValueName.getSimpleName() + "(" +
+            SmallDataInputStream.class.getName() + " in) throws " +
+            IOException.class.getName() + "{\n");
     for (ModelField field : fieldList)
-      buffer.append(getDecodingSourceCode("%s = %s", "    ", "this." + field.getName(), "in", field.getType(), 0));
+      buffer.append(getDecodingSourceCode("%s = %s", "    ",
+              "this." + field.getName(), "in", field.getType(), 0));
     buffer.append("  }\n");
     
     // The write() function.
     buffer.append("\n");
-    buffer.append("  public void write(" + DataOutput.class.getName() + " out) throws " + IOException.class.getName() + "{\n");
+    buffer.append("  public void write(" + SmallDataOutputStream.class.getName() +
+            " out) throws " + IOException.class.getName() + "{\n");
     for (ModelField field : fieldList)
-      buffer.append(getEncodingSourceCode("    ", "this." + field.getName(), "out", field.getType(), 0));
+      buffer.append(getEncodingSourceCode("    ", "this." + field.getName(), "out",
+              field.getType(), 0));
     buffer.append("  }\n");
     
     // The toString() function.
@@ -623,7 +631,7 @@ public class JavaCodeGenerator extends CodeGenerator {
       DeclaredType declaredType = (DeclaredType) parameterType;
 
       if (declaredType.getTypeClass() == String.class) {
-        buffer.append(indentation + outputStreamVarName + ".writeUTF(" + valueName + ");\n");
+        buffer.append(indentation + outputStreamVarName + ".writeMyUTF(" + valueName + ");\n");
       }
 
       else if (declaredType.getTypeClass() == List.class ||
@@ -681,8 +689,12 @@ public class JavaCodeGenerator extends CodeGenerator {
 
       // Value objects.
       else if (modelData.getClassNameToVoClass().containsKey(parameterType.toString())) {
-        buffer.append(indentation + String.format("%2$s.write(%1$s);\n",
-                outputStreamVarName, valueName));
+        buffer.append(indentation + "if (" + valueName + " == null)\n");
+        buffer.append(indentation + "  " + outputStreamVarName + ".writeBoolean(false);\n");
+        buffer.append(indentation + "else {\n");
+        buffer.append(indentation + "  " + outputStreamVarName + ".writeBoolean(true);\n");
+        buffer.append(indentation + "  " + String.format("%2$s.write(%1$s);\n", outputStreamVarName, valueName));
+        buffer.append(indentation + "}\n");
       }
 
       else {
@@ -789,7 +801,7 @@ public class JavaCodeGenerator extends CodeGenerator {
 
       if (declaredType.getTypeClass() == String.class) {
         buffer.append(indentation + String.format(affectationFormat, targetVariableName,
-                inputStreamVarName + ".readUTF()") + ";\n");
+                inputStreamVarName + ".readMyUTF()") + ";\n");
       }
 
       else if (declaredType.getTypeClass() == List.class) {
@@ -916,8 +928,11 @@ public class JavaCodeGenerator extends CodeGenerator {
       // Value objects.
       else if (modelData.getClassNameToVoClass().containsKey(parameterType.toString())) {
         VoClass voClass = modelData.getClassNameToVoClass().get(parameterType.toString());
-        buffer.append(indentation + String.format(affectationFormat, targetVariableName,
+        buffer.append(indentation + "if (" + inputStreamVarName + ".readBoolean())\n");
+        buffer.append(indentation + "  " + String.format(affectationFormat, targetVariableName,
                 "new " + getValueObjectName(voClass).getQualifiedName() + "(" + inputStreamVarName + ")") + ";\n");
+        buffer.append(indentation + "else\n");
+        buffer.append(indentation + "  " + String.format(affectationFormat, targetVariableName, "null") + ";\n");
       }
 
       else {

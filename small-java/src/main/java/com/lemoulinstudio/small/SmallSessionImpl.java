@@ -65,7 +65,7 @@ public class SmallSessionImpl implements SmallSession {
     setCurrentSession(this);
     
     try {
-      DataInputStream inputStream = new DataInputStream(new ByteBufferInputStream(binaryMessage));
+      SmallDataInputStream inputStream = new SmallDataInputStream(new ByteBufferInputStream(binaryMessage));
 
       // Decode the message and invoke the method.
       rootDecoder.decodeAndInvoke(this, inputStream);
