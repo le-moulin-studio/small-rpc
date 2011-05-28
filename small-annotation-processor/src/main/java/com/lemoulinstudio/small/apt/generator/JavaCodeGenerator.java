@@ -593,16 +593,19 @@ public class JavaCodeGenerator extends CodeGenerator {
       ArrayType arrayType = (ArrayType) parameterType;
 
       CharSequence writeValueBlock = getEncodingSourceCode(
-              indentation + "  ",
+              indentation + "    ",
               "val" + recursionDepth,
               outputStreamVarName,
               arrayType.getComponentType(),
               recursionDepth + 1);
 
       buffer.append(String.format(
-              "%1$s%2$s.writeInt(%3$s.length);\n" +
-              "%1$sfor (%4$s val%5$s : %3$s) {\n" +
+              "%1$sif (%3$s == null) %2$s.writeInt(-1);\n" +
+              "%1$selse {\n" +
+              "%1$s  %2$s.writeInt(%3$s.length);\n" +
+              "%1$s  for (%4$s val%5$s : %3$s) {\n" +
               "%6$s" +
+              "%1$s  }\n" +
               "%1$s}\n",
               indentation,
               outputStreamVarName,
@@ -638,16 +641,19 @@ public class JavaCodeGenerator extends CodeGenerator {
                declaredType.getTypeClass() == Set.class ||
                declaredType.getTypeClass() == Collection.class) {
         CharSequence writeValueBlock = getEncodingSourceCode(
-                indentation + "  ",
+                indentation + "    ",
                 "val" + recursionDepth,
                 outputStreamVarName,
                 declaredType.getGenericArgumentTypeList().get(0),
                 recursionDepth + 1);
 
         buffer.append(String.format(
-                "%1$s%2$s.writeInt(%3$s.size());\n" +
-                "%1$sfor (%4$s val%5$s : %3$s) {\n" +
+                "%1$sif (%3$s == null) %2$s.writeInt(-1);\n" +
+                "%1$selse {\n" +
+                "%1$s  %2$s.writeInt(%3$s.size());\n" +
+                "%1$s  for (%4$s val%5$s : %3$s) {\n" +
                 "%6$s" +
+                "%1$s  }\n" +
                 "%1$s}\n",
                 indentation,
                 outputStreamVarName,
@@ -659,7 +665,7 @@ public class JavaCodeGenerator extends CodeGenerator {
 
       else if (declaredType.getTypeClass() == Map.class) {
         CharSequence writeKeyBlock = getEncodingSourceCode(
-                indentation + "  ",
+                indentation + "    ",
                 "entry" + recursionDepth + ".getKey()",
                 outputStreamVarName,
                 declaredType.getGenericArgumentTypeList().get(0),
@@ -672,10 +678,13 @@ public class JavaCodeGenerator extends CodeGenerator {
                 recursionDepth + 1);
 
         buffer.append(String.format(
-                "%1$s%2$s.writeInt(%3$s.size());\n" +
-                "%1$sfor (java.util.Map.Entry<%4$s, %5$s> entry%6$s : %3$s.entrySet()) {\n" +
+                "%1$sif (%3$s == null) %2$s.writeInt(-1);\n" +
+                "%1$selse {\n" +
+                "%1$s  %2$s.writeInt(%3$s.size());\n" +
+                "%1$s  for (java.util.Map.Entry<%4$s, %5$s> entry%6$s : %3$s.entrySet()) {\n" +
                 "%7$s" +
                 "%8$s" +
+                "%1$s  }\n" +
                 "%1$s}\n",
                 indentation,
                 outputStreamVarName,
@@ -738,28 +747,29 @@ public class JavaCodeGenerator extends CodeGenerator {
       ArrayType arrayType = (ArrayType) parameterType;
 
       CharSequence initValueBlock = getDecodingSourceCode("%s = %s",
-              indentation + "    ",
+              indentation + "      ",
               "tmp" + recursionDepth + "[i" + recursionDepth + "]",
               inputStreamVarName,
               arrayType.getComponentType(),
               recursionDepth + 1);
 
-      CharSequence affectation = String.format(affectationFormat,
-              targetVariableName, "tmp" + recursionDepth);
-
       buffer.append(String.format(
               "%1$s{\n" +
-              "%1$s  %2$s[] tmp%4$d = new %7$s[%3$s.readInt()]%8$s;\n" +
-              "%1$s  for (int i%4$d = 0; i%4$d < tmp%4$d.length; i%4$d++)\n" +
+              "%1$s  %2$s[] tmp%4$d = new %8$s[%3$s.readInt()]%9$s;\n" +
+              "%1$s  if (length%4$d == -1) %6$s;\n" +
+              "%1$s  else {\n" +
+              "%1$s    for (int i%4$d = 0; i%4$d < tmp%4$d.length; i%4$d++)\n" +
               "%5$s" +
-              "%1$s  %6$s;\n" +
+              "%1$s    %7$s;\n" +
+              "%1$s }\n" +
               "%1$s}\n",
               indentation,
               arrayType.getComponentType(),
               inputStreamVarName,
               recursionDepth,
               initValueBlock,
-              affectation,
+              String.format(affectationFormat, targetVariableName, "null"),
+              String.format(affectationFormat, targetVariableName, "tmp" + recursionDepth),
               arrayType.getTypeWithNoArray(),
               arrayType.bracketToString().substring(2)));
     }
@@ -786,16 +796,6 @@ public class JavaCodeGenerator extends CodeGenerator {
                 "])") + ";") + "\n");
     }
 
-//    else if (parameterType.getTypeKind() == TypeKind.Model) {
-//      ModelType modelType = (ModelType) parameterType;
-//      ModelClass modelClass = modelType.getModelClass();
-//
-//      if (modelClass.isLocalSide())
-//        if (modelClass.getIdBindingPolicy() == IdBindingPolicy.Singleton)
-//          buffer.append(indentation + String.format(affectationFormat, targetVariableName,
-//                  "smallSession.getLocalSingletonRef(" + toString(modelType, true, false, true) + ".class)") + ";\n");
-//    }
-
     else if (parameterType.getTypeKind() == TypeKind.Declared) {
       DeclaredType declaredType = (DeclaredType) parameterType;
 
@@ -806,114 +806,117 @@ public class JavaCodeGenerator extends CodeGenerator {
 
       else if (declaredType.getTypeClass() == List.class) {
         CharSequence initValueBlock = getDecodingSourceCode("%s.add(%s)",
-                indentation + "    ",
+                indentation + "      ",
                 "tmp" + recursionDepth,
                 inputStreamVarName,
                 declaredType.getGenericArgumentTypeList().get(0),
                 recursionDepth + 1);
 
-        String affectation = String.format(affectationFormat,
-                targetVariableName, "tmp" + recursionDepth);
-
         buffer.append(String.format(
                 "%1$s{\n" +
                 "%1$s  int length%4$d = %3$s.readInt();\n" +
-                "%1$s  java.util.List<%2$s> tmp%4$d = new java.util.ArrayList<%2$s>(length%4$d);\n" +
-                "%1$s  for (int i%4$d = 0; i%4$d < length%4$d; i%4$d++)\n" +
+                "%1$s  if (length%4$d == -1) %6$s;\n" +
+                "%1$s  else {\n" +
+                "%1$s    java.util.List<%2$s> tmp%4$d = new java.util.ArrayList<%2$s>(length%4$d);\n" +
+                "%1$s    for (int i%4$d = 0; i%4$d < length%4$d; i%4$d++)\n" +
                 "%5$s" +
-                "%1$s  %6$s;\n" +
+                "%1$s    %7$s;\n" +
+                "%1$s  }\n" +
                 "%1$s}\n",
                 indentation,
                 toString(declaredType.getGenericArgumentTypeList().get(0)),
                 inputStreamVarName,
                 recursionDepth,
                 initValueBlock,
-                affectation));
+                String.format(affectationFormat, targetVariableName, "null"),
+                String.format(affectationFormat, targetVariableName, "tmp" + recursionDepth)));
       }
 
       else if (declaredType.getTypeClass() == Set.class) {
         CharSequence initValueBlock = getDecodingSourceCode("%s.add(%s)",
-                indentation + "    ",
+                indentation + "      ",
                 "tmp" + recursionDepth,
                 inputStreamVarName,
                 declaredType.getGenericArgumentTypeList().get(0),
                 recursionDepth + 1);
 
-        String affectation = String.format(affectationFormat,
-                targetVariableName, "tmp" + recursionDepth);
-
         buffer.append(String.format(
                 "%1$s{\n" +
                 "%1$s  int length%4$d = %3$s.readInt();\n" +
-                "%1$s  java.util.Set<%2$s> tmp%4$d = new java.util.HashSet<%2$s>(length%4$d);\n" +
-                "%1$s  for (int i%4$d = 0; i%4$d < length%4$d; i%4$d++)\n" +
+                "%1$s  if (length%4$d == -1) %6$s;\n" +
+                "%1$s  else {\n" +
+                "%1$s    java.util.Set<%2$s> tmp%4$d = new java.util.HashSet<%2$s>(length%4$d);\n" +
+                "%1$s    for (int i%4$d = 0; i%4$d < length%4$d; i%4$d++)\n" +
                 "%5$s" +
-                "%1$s  %6$s;\n" +
+                "%1$s    %7$s;\n" +
+                "%1$s  }\n" +
                 "%1$s}\n",
                 indentation,
                 toString(declaredType.getGenericArgumentTypeList().get(0)),
                 inputStreamVarName,
                 recursionDepth,
                 initValueBlock,
-                affectation));
+                String.format(affectationFormat, targetVariableName, "null"),
+                String.format(affectationFormat, targetVariableName, "tmp" + recursionDepth)));
       }
 
       else if (declaredType.getTypeClass() == Collection.class) {
         CharSequence initValueBlock = getDecodingSourceCode("%s.add(%s)",
-                indentation + "    ",
+                indentation + "      ",
                 "tmp" + recursionDepth,
                 inputStreamVarName,
                 declaredType.getGenericArgumentTypeList().get(0),
                 recursionDepth + 1);
 
-        String affectation = String.format(affectationFormat,
-                targetVariableName, "tmp" + recursionDepth);
-
         buffer.append(String.format(
                 "%1$s{\n" +
                 "%1$s  int length%4$d = %3$s.readInt();\n" +
-                "%1$s  java.util.Collection<%2$s> tmp%4$d = new java.util.ArrayList<%2$s>(length%4$d);\n" +
-                "%1$s  for (int i%4$d = 0; i%4$d < length%4$d; i%4$d++)\n" +
+                "%1$s  if (length%4$d == -1) %6$s;\n" +
+                "%1$s  else {\n" +
+                "%1$s    java.util.Collection<%2$s> tmp%4$d = new java.util.ArrayList<%2$s>(length%4$d);\n" +
+                "%1$s    for (int i%4$d = 0; i%4$d < length%4$d; i%4$d++)\n" +
                 "%5$s" +
-                "%1$s  %6$s;\n" +
+                "%1$s    %7$s;\n" +
+                "%1$s  }\n" +
                 "%1$s}\n",
                 indentation,
                 toString(declaredType.getGenericArgumentTypeList().get(0)),
                 inputStreamVarName,
                 recursionDepth,
                 initValueBlock,
-                affectation));
+                String.format(affectationFormat, targetVariableName, "null"),
+                String.format(affectationFormat, targetVariableName, "tmp" + recursionDepth)));
       }
 
       else if (declaredType.getTypeClass() == Map.class) {
         CharSequence initKeyBlock = getDecodingSourceCode("%s = %s",
-                indentation + "    ",
+                indentation + "      ",
                 "key" + recursionDepth,
                 inputStreamVarName,
                 declaredType.getGenericArgumentTypeList().get(0),
                 recursionDepth + 1);
         CharSequence initValueBlock = getDecodingSourceCode("%s = %s",
-                indentation + "    ",
+                indentation + "      ",
                 "val" + recursionDepth,
                 inputStreamVarName,
                 declaredType.getGenericArgumentTypeList().get(1),
                 recursionDepth + 1);
 
-        String affectation = String.format(affectationFormat,
-                targetVariableName, "tmp" + recursionDepth);
-
         buffer.append(String.format(
                 "%1$s{\n" +
                 "%1$s  int length%5$d = %4$s.readInt();\n" +
-                "%1$s  java.util.Map<%2$s, %3$s> tmp%5$d = new java.util.HashMap<%2$s, %3$s>(length%5$d);\n" +
-                "%1$s  for (int i%5$d = 0; i%5$d < length%5$d; i%5$d++) {\n" +
-                "%1$s    %2$s key%5$d;\n" +
-                "%1$s    %3$s val%5$d;\n" +
+                "%1$s  if (length%5$d == -1) %8$s;\n" +
+                "%1$s  else {\n" +
+                "%1$s    java.util.Map<%2$s, %3$s> tmp%5$d = new java.util.HashMap<%2$s, %3$s>(length%5$d);\n" +
+                "%1$s    for (int i%5$d = 0; i%5$d < length%5$d; i%5$d++) {\n" +
+                "%1$s      %2$s key%5$d;\n" +
+                "%1$s      %3$s val%5$d;\n" +
                 "%6$s" +
                 "%7$s" +
-                "%1$s    tmp%5$d.put(key%5$d, val%5$d);\n" +
+                "%1$s      tmp%5$d.put(key%5$d, val%5$d);\n" +
+                "%1$s    }\n" +
+                "%1$s    %9$s;\n" +
                 "%1$s  }\n" +
-                "%1$s  %8$s;\n" +
                 "%1$s}\n",
                 indentation,
                 toString(declaredType.getGenericArgumentTypeList().get(0)),
@@ -922,7 +925,8 @@ public class JavaCodeGenerator extends CodeGenerator {
                 recursionDepth,
                 initKeyBlock,
                 initValueBlock,
-                affectation));
+                String.format(affectationFormat, targetVariableName, "null"),
+                String.format(affectationFormat, targetVariableName, "tmp" + recursionDepth)));
       }
 
       // Value objects.
