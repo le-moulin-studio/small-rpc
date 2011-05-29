@@ -21,18 +21,8 @@ public class VoClass {
     return fieldList;
   }
   
-  public String getQualifiedName() {
-    return type.getTypeName();
-  }
-  
-  public String getPackageName() {
-    String qualifiedName = getQualifiedName();
-    return qualifiedName.substring(0, qualifiedName.lastIndexOf("."));
-  }
-  
-  public String getSimpleName() {
-    String qualifiedName = getQualifiedName();
-    return qualifiedName.substring(qualifiedName.lastIndexOf(".") + 1);
+  public ClassName getClassName() {
+    return new ClassName(type.getTypeName());
   }
   
 }

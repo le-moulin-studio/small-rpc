@@ -237,8 +237,12 @@ public class ModelFactory {
 
     // If this is an enum.
     if (typeElement.getSuperclass().toString().startsWith(Enum.class.getCanonicalName() + "<")) {
-      int nbEnumConstant = ElementFilter.fieldsIn(typeElement.getEnclosedElements()).size();
-      return new EnumType(typeElement.getQualifiedName().toString(), nbEnumConstant);
+      List<String> enumItems = new ArrayList<String>();
+      for (VariableElement variableElement : ElementFilter.fieldsIn(typeElement.getEnclosedElements()))
+        enumItems.add(variableElement.getSimpleName().toString());
+      EnumType enumType = new EnumType(typeElement.getQualifiedName().toString(), enumItems);
+      modelData.enumTypes.add(enumType);
+      return enumType;
     }
 
     // If this type is a primitive wrapper.

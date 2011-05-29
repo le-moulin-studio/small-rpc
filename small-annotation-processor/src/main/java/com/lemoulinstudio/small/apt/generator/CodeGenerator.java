@@ -4,7 +4,6 @@ import com.lemoulinstudio.small.apt.APConfig;
 import com.lemoulinstudio.small.apt.oom.ClassName;
 import com.lemoulinstudio.small.apt.oom.ModelClass;
 import com.lemoulinstudio.small.apt.oom.ModelData;
-import com.lemoulinstudio.small.apt.oom.VoClass;
 import java.util.List;
 
 /**
@@ -47,13 +46,13 @@ public abstract class CodeGenerator {
             "decoder." + modelClass.getSimpleName() + "Decoder");
   }
 
-  protected ClassName getValueObjectName(VoClass voClass) {
-    if (voClass.getQualifiedName().startsWith(config.getInputVoBasePackage()))
+  protected ClassName getValueObjectName(ClassName className) {
+    if (className.getPackageName().startsWith(config.getInputVoBasePackage()))
       return new ClassName(config.getOutputBasePackage() + "." +
-              removeFromBeginning(voClass.getPackageName(), config.getInputVoBasePackage()) +
-              "vo." + voClass.getSimpleName());
+              removeFromBeginning(className.getPackageName(), config.getInputVoBasePackage()) +
+              "vo." + className.getSimpleName());
     else
-      return new ClassName(voClass.getQualifiedName());
+      return className;
   }
 
   protected String removeFromBeginning(String name, String toBeRemoved) {

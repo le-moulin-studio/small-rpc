@@ -85,6 +85,9 @@ public class JavaCodeGenerator extends CodeGenerator {
     for (VoClass voClass : modelData.getClassNameToVoClass().values())
       generateValueObject(voClass);
 
+    // Generate the enums.
+    for (EnumType enumType : modelData.getEnumTypes())
+      generateEnum(enumType);
   }
 
   protected void generateConfigFile(List<ModelClass> modelClassList) {
@@ -432,7 +435,7 @@ public class JavaCodeGenerator extends CodeGenerator {
   protected void generateValueObject(VoClass voClass) {
     StringBuilder buffer = new StringBuilder();
     
-    ClassName objectValueName = getValueObjectName(voClass);
+    ClassName objectValueName = getValueObjectName(voClass.getClassName());
     List<ModelField> fieldList = voClass.getFieldList();
 
     buffer.append("package " + objectValueName.getPackageName() + ";\n");
@@ -509,6 +512,24 @@ public class JavaCodeGenerator extends CodeGenerator {
     writeFileContent(objectValueName.getQualifiedName(), buffer);
   }
 
+  protected void generateEnum(EnumType enumType) {
+    StringBuilder buffer = new StringBuilder();
+    
+    ClassName enumClassName = getValueObjectName(enumType.getClassName());
+
+    buffer.append("package " + enumClassName.getPackageName() + ";\n");
+    buffer.append("\n");
+    buffer.append(getGeneratedTag() + "\n");
+    buffer.append("public enum " + enumClassName.getSimpleName() + " {\n");
+    
+    // The fields.
+    buffer.append("  " + getCommaSeparatedSequence(enumType.getEnumItems(), ",\n  ") + ";\n");
+    
+    buffer.append("}\n");
+    
+    writeFileContent(enumClassName.getQualifiedName(), buffer);
+  }
+  
   protected void writeFileContent(String fileName, CharSequence content) {
     try {
       JavaFileObject f = config.getProcessingEnv().getFiler().createSourceFile(fileName);
@@ -543,7 +564,7 @@ public class JavaCodeGenerator extends CodeGenerator {
       case Array:
         return toString(((ArrayType) type).getComponentType()) + "[]";
       case Enum:
-        return ((EnumType) type).getQualifiedClassName();
+        return getValueObjectName(((EnumType) type).getClassName()).getQualifiedName();
       case PrimitiveWrapper:
         return ((PrimitiveWrapperType) type).getWrapperClass().getName();
       case Model: {
@@ -557,7 +578,7 @@ public class JavaCodeGenerator extends CodeGenerator {
         
         // We do a replacement for value objects.
         if (modelData.getClassNameToVoClass().containsKey(declaredTypeName))
-          declaredTypeName = getValueObjectName(modelData.getClassNameToVoClass().get(declaredTypeName)).getQualifiedName();
+          declaredTypeName = getValueObjectName(modelData.getClassNameToVoClass().get(declaredTypeName).getClassName()).getQualifiedName();
           
         buffer.append(declaredTypeName);
 
@@ -628,7 +649,7 @@ public class JavaCodeGenerator extends CodeGenerator {
     else if (parameterType.getTypeKind() == TypeKind.Enum) {
       EnumType enumType = (EnumType) parameterType;
       
-      int nbEnumItems = enumType.getNbEnumItems();
+      int nbEnumItems = enumType.getEnumItems().size();
       String enumWriteCommand =
               (nbEnumItems + 1 <= 256 ? ".writeByte" :
                 (nbEnumItems + 1 <= 65536 ? ".writeShort" :
@@ -710,7 +731,7 @@ public class JavaCodeGenerator extends CodeGenerator {
       else if (modelData.getClassNameToVoClass().containsKey(parameterType.toString())) {
         VoClass voClass = modelData.getClassNameToVoClass().get(parameterType.toString());
         buffer.append(indentation + String.format("%1$s.write(%2$s, %3$s);\n",
-                getValueObjectName(voClass).getQualifiedName(), valueName, outputStreamVarName));
+                getValueObjectName(voClass.getClassName()).getQualifiedName(), valueName, outputStreamVarName));
       }
 
       else {
@@ -784,7 +805,7 @@ public class JavaCodeGenerator extends CodeGenerator {
 
     else if (parameterType.getTypeKind() == TypeKind.Enum) {
       EnumType enumType = (EnumType) parameterType;
-      int nbEnumItems = enumType.getNbEnumItems();
+      int nbEnumItems = enumType.getEnumItems().size();
         String enumOrdinalAsInt = inputStreamVarName +
                 (nbEnumItems + 1 <= 256 ? ".readUnsignedByte()" :
                   (nbEnumItems + 1 <= 65536 ? ".readUnsignedShort()" :
@@ -800,8 +821,8 @@ public class JavaCodeGenerator extends CodeGenerator {
               enumOrdinalAsInt,
               String.format(affectationFormat, targetVariableName,
                 "(tmp" + recursionDepth + " == " + nbEnumItems + " ? null : " +
-                enumType.getQualifiedClassName() + ".values()[tmp" + recursionDepth +
-                "])") + ";") + "\n");
+                getValueObjectName(enumType.getClassName()).getQualifiedName() +
+                ".values()[tmp" + recursionDepth + "])") + ";") + "\n");
     }
 
     else if (parameterType.getTypeKind() == TypeKind.Declared) {
@@ -941,7 +962,7 @@ public class JavaCodeGenerator extends CodeGenerator {
       else if (modelData.getClassNameToVoClass().containsKey(parameterType.toString())) {
         VoClass voClass = modelData.getClassNameToVoClass().get(parameterType.toString());
         buffer.append(indentation + String.format(affectationFormat, targetVariableName,
-                getValueObjectName(voClass).getQualifiedName() + ".read(" + inputStreamVarName + ")") + ";\n");
+                getValueObjectName(voClass.getClassName()).getQualifiedName() + ".read(" + inputStreamVarName + ")") + ";\n");
       }
 
       else {

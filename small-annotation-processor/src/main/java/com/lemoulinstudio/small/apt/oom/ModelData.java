@@ -1,5 +1,6 @@
 package com.lemoulinstudio.small.apt.oom;
 
+import com.lemoulinstudio.small.apt.type.EnumType;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -21,6 +22,8 @@ public class ModelData {
   List<ModelClass> otherSideModelClassOrderedList = new ArrayList<ModelClass>();
   
   Map<String, VoClass> classNameToVoClass = new HashMap<String, VoClass>();
+  
+  Set<EnumType> enumTypes = new HashSet<EnumType>();
 
   public int getNumberOfMethodsOnSameSide() {
     return sameSideMethodId;
@@ -44,6 +47,10 @@ public class ModelData {
 
   public Map<String, VoClass> getClassNameToVoClass() {
     return classNameToVoClass;
+  }
+  
+  public Set<EnumType> getEnumTypes() {
+    return enumTypes;
   }
 
 }
