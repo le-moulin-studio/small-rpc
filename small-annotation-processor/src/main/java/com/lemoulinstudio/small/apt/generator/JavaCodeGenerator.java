@@ -443,7 +443,7 @@ public class JavaCodeGenerator extends CodeGenerator {
     // The fields.
     buffer.append("\n");
     for (ModelField field : fieldList) {
-      buffer.append("  public " + field.getType() + " " + field.getName() + ";\n");
+      buffer.append("  public " + toString(field.getType()) + " " + field.getName() + ";\n");
     }
 
     // The default empty constructor.
@@ -456,7 +456,7 @@ public class JavaCodeGenerator extends CodeGenerator {
     buffer.append("  public " + objectValueName.getSimpleName() + "(");
     List<String> fieldDeclarationList = new ArrayList<String>();
     for (ModelField field : fieldList)
-      fieldDeclarationList.add(field.getType() + " " + field.getName());
+      fieldDeclarationList.add(toString(field.getType()) + " " + field.getName());
     buffer.append(getCommaSeparatedSequence(fieldDeclarationList) + ") {\n");
     for (ModelField field : fieldList)
       buffer.append("    this." + field.getName() + " = " + field.getName() + ";\n");
@@ -610,7 +610,7 @@ public class JavaCodeGenerator extends CodeGenerator {
               indentation,
               outputStreamVarName,
               valueName,
-              arrayType.getComponentType(),
+              toString(arrayType.getComponentType()),
               recursionDepth,
               writeValueBlock));
     }
@@ -755,22 +755,23 @@ public class JavaCodeGenerator extends CodeGenerator {
 
       buffer.append(String.format(
               "%1$s{\n" +
-              "%1$s  %2$s[] tmp%4$d = new %8$s[%3$s.readInt()]%9$s;\n" +
+              "%1$s  int length%4$d = %3$s.readInt();\n" +
               "%1$s  if (length%4$d == -1) %6$s;\n" +
               "%1$s  else {\n" +
+              "%1$s    %2$s[] tmp%4$d = new %8$s[length%4$d]%9$s;\n" +
               "%1$s    for (int i%4$d = 0; i%4$d < tmp%4$d.length; i%4$d++)\n" +
               "%5$s" +
               "%1$s    %7$s;\n" +
               "%1$s }\n" +
               "%1$s}\n",
               indentation,
-              arrayType.getComponentType(),
+              toString(arrayType.getComponentType()),
               inputStreamVarName,
               recursionDepth,
               initValueBlock,
               String.format(affectationFormat, targetVariableName, "null"),
               String.format(affectationFormat, targetVariableName, "tmp" + recursionDepth),
-              arrayType.getTypeWithNoArray(),
+              toString(arrayType.getTypeWithNoArray()),
               arrayType.bracketToString().substring(2)));
     }
 
