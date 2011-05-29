@@ -786,8 +786,8 @@ public class JavaCodeGenerator extends CodeGenerator {
       EnumType enumType = (EnumType) parameterType;
       int nbEnumItems = enumType.getNbEnumItems();
         String enumOrdinalAsInt = inputStreamVarName +
-                (nbEnumItems + 1 <= 256 ? ".readByte() & 0xff" :
-                  (nbEnumItems + 1 <= 65536 ? ".readShort() & 0xffff" :
+                (nbEnumItems + 1 <= 256 ? ".readUnsignedByte()" :
+                  (nbEnumItems + 1 <= 65536 ? ".readUnsignedShort()" :
                     ".readInt()"));
         
         buffer.append(String.format(
