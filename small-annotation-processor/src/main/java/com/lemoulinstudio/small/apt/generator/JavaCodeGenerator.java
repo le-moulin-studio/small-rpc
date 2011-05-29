@@ -462,22 +462,32 @@ public class JavaCodeGenerator extends CodeGenerator {
       buffer.append("    this." + field.getName() + " = " + field.getName() + ";\n");
     buffer.append("  }\n");
     
-    // The DataInput constructor.
+    // The static read() function.
     buffer.append("\n");
-    buffer.append("  public " + objectValueName.getSimpleName() + "(" +
-            SmallDataInputStream.class.getName() + " in) throws " +
+    buffer.append("  public static " + objectValueName.getSimpleName() +
+            " read(" + SmallDataInputStream.class.getName() + " in) throws " +
             IOException.class.getName() + "{\n");
+    buffer.append("    if (in.readBoolean())\n");
+    buffer.append("      return null;\n");
+    buffer.append("    \n");
+    buffer.append("    " + objectValueName.getSimpleName() + " vo = new " + objectValueName.getSimpleName() + "();\n");
     for (ModelField field : fieldList)
       buffer.append(getDecodingSourceCode("%s = %s", "    ",
-              "this." + field.getName(), "in", field.getType(), 0));
+              "vo." + field.getName(), "in", field.getType(), 0));
+    buffer.append("    return vo;\n");
     buffer.append("  }\n");
     
-    // The write() function.
+    // The static write() function.
     buffer.append("\n");
-    buffer.append("  public void write(" + SmallDataOutputStream.class.getName() +
-            " out) throws " + IOException.class.getName() + "{\n");
+    buffer.append("  public static void write(" +
+            objectValueName.getSimpleName() + " vo, " +
+            SmallDataOutputStream.class.getName() + " out) " +
+            "throws " + IOException.class.getName() + " {\n");
+    buffer.append("    out.writeBoolean(vo == null);\n");
+    buffer.append("    if (vo == null) return;\n");
+    buffer.append("    \n");
     for (ModelField field : fieldList)
-      buffer.append(getEncodingSourceCode("    ", "this." + field.getName(), "out",
+      buffer.append(getEncodingSourceCode("    ", "vo." + field.getName(), "out",
               field.getType(), 0));
     buffer.append("  }\n");
     
@@ -698,12 +708,9 @@ public class JavaCodeGenerator extends CodeGenerator {
 
       // Value objects.
       else if (modelData.getClassNameToVoClass().containsKey(parameterType.toString())) {
-        buffer.append(indentation + "if (" + valueName + " == null)\n");
-        buffer.append(indentation + "  " + outputStreamVarName + ".writeBoolean(false);\n");
-        buffer.append(indentation + "else {\n");
-        buffer.append(indentation + "  " + outputStreamVarName + ".writeBoolean(true);\n");
-        buffer.append(indentation + "  " + String.format("%2$s.write(%1$s);\n", outputStreamVarName, valueName));
-        buffer.append(indentation + "}\n");
+        VoClass voClass = modelData.getClassNameToVoClass().get(parameterType.toString());
+        buffer.append(indentation + String.format("%1$s.write(%2$s, %3$s);\n",
+                getValueObjectName(voClass).getQualifiedName(), valueName, outputStreamVarName));
       }
 
       else {
@@ -933,11 +940,8 @@ public class JavaCodeGenerator extends CodeGenerator {
       // Value objects.
       else if (modelData.getClassNameToVoClass().containsKey(parameterType.toString())) {
         VoClass voClass = modelData.getClassNameToVoClass().get(parameterType.toString());
-        buffer.append(indentation + "if (" + inputStreamVarName + ".readBoolean())\n");
-        buffer.append(indentation + "  " + String.format(affectationFormat, targetVariableName,
-                "new " + getValueObjectName(voClass).getQualifiedName() + "(" + inputStreamVarName + ")") + ";\n");
-        buffer.append(indentation + "else\n");
-        buffer.append(indentation + "  " + String.format(affectationFormat, targetVariableName, "null") + ";\n");
+        buffer.append(indentation + String.format(affectationFormat, targetVariableName,
+                getValueObjectName(voClass).getQualifiedName() + ".read(" + inputStreamVarName + ")") + ";\n");
       }
 
       else {
