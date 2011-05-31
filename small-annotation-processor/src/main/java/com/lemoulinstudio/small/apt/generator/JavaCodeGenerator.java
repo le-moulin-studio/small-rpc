@@ -513,6 +513,9 @@ public class JavaCodeGenerator extends CodeGenerator {
   }
 
   protected void generateEnum(EnumType enumType) {
+    if (!enumType.getClassName().getPackageName().startsWith(config.getInputVoBasePackage()))
+      return;
+    
     StringBuilder buffer = new StringBuilder();
     
     ClassName enumClassName = getValueObjectName(enumType.getClassName());
