@@ -433,6 +433,9 @@ public class JavaCodeGenerator extends CodeGenerator {
   }
 
   protected void generateValueObject(VoClass voClass) {
+    if (!voClass.getClassName().getPackageName().startsWith(config.getInputVoBasePackage()))
+      return;
+    
     StringBuilder buffer = new StringBuilder();
     
     ClassName objectValueName = getValueObjectName(voClass.getClassName());
