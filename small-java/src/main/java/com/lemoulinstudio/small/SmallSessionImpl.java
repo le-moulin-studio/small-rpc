@@ -2,7 +2,6 @@ package com.lemoulinstudio.small;
 
 import com.lemoulinstudio.small.util.ByteBufferInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
